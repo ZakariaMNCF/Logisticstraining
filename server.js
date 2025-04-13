@@ -5,20 +5,16 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Enable CORS
 app.use(cors());
 
-// Set up storage engine for multer
+// Set up file storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const category = req.params.category;
-        const subcategory = req.params.subcategory;
-        const dir = `./uploads/${category}/${subcategory}`;
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
+        const dir = `/tmp/uploads/${req.params.category}/${req.params.subcategory}`;
+        fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
     filename: (req, file, cb) => {
@@ -28,10 +24,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Serve static files from the 'uploads' directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files
+app.use('/uploads', express.static('/tmp/uploads'));
 
-// Serve the HTML file
+// Serve HTML file
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'SAP-Customer.html'));
 });
@@ -43,32 +39,26 @@ app.post('/upload/:category/:subcategory', upload.single('file'), (req, res) => 
 
 // List files endpoint
 app.get('/files/:category/:subcategory', (req, res) => {
-    const category = req.params.category;
-    const subcategory = req.params.subcategory;
-    const dir = `./uploads/${category}/${subcategory}`;
+    const dir = `/tmp/uploads/${req.params.category}/${req.params.subcategory}`;
+    if (!fs.existsSync(dir)) {
+        return res.json({ success: true, files: [] });
+    }
     fs.readdir(dir, (err, files) => {
-        if (err) {
-            return res.json({ success: false, error: err.message });
-        }
+        if (err) return res.json({ success: false, error: err.message });
         res.json({ success: true, files });
     });
 });
 
-// Delete file endpoint
+// Delete endpoint
 app.delete('/delete/:category/:subcategory/:filename', (req, res) => {
-    const category = req.params.category;
-    const subcategory = req.params.subcategory;
-    const filename = req.params.filename;
-    const filePath = `./uploads/${category}/${subcategory}/${filename}`;
+    const filePath = `/tmp/uploads/${req.params.category}/${req.params.subcategory}/${req.params.filename}`;
     fs.unlink(filePath, (err) => {
-        if (err) {
-            return res.json({ success: false, error: err.message });
-        }
+        if (err) return res.json({ success: false, error: err.message });
         res.json({ success: true });
     });
 });
 
-// Start the server
+// Start server
 app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+    console.log(`Server running on port ${port}`);
 });
