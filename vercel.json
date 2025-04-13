@@ -5,8 +5,8 @@
       "src": "server.js",
       "use": "@vercel/node",
       "config": {
-        "maxDuration": 10, // Maximum allowed for free tier
-        "memory": 1024, // Max memory (MB)
+        "maxDuration": 10,
+        "memory": 1024,
         "includeFiles": [
           "uploads/**",
           "SAP-Customer.html"
