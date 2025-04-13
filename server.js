@@ -7,41 +7,64 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Enhanced CORS configuration
+// Enhanced CORS configuration with logging
 app.use(cors({
     origin: [
-        'https://logisticstraining-mxoz.vercel.app', // Your Vercel frontend
-        'http://localhost:3000' // For local development
+        'https://logisticstraining-mxoz.vercel.app',
+        'http://localhost:3000'
     ],
-    methods: ['GET', 'POST', 'DELETE'],
-    allowedHeaders: ['Content-Type']
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// File filter for uploads
+// Preflight request handling
+app.options('*', cors());
+
+// Request logging middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    next();
+});
+
+// File filter with better MIME type validation
 const fileFilter = (req, file, cb) => {
-    const allowedTypes = ['application/pdf', 'video/mp4', 'video/quicktime'];
-    if (allowedTypes.includes(file.mimetype)) {
+    const allowedTypes = [
+        'application/pdf',
+        'video/mp4',
+        'video/quicktime',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    const allowedExtensions = ['.pdf', '.mp4', '.mov', '.doc', '.docx'];
+    const fileExt = path.extname(file.originalname).toLowerCase();
+
+    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
         cb(null, true);
     } else {
-        cb(new Error('Invalid file type. Only PDF and MP4/MOV files are allowed.'), false);
+        cb(new Error(`Invalid file type. Allowed types: ${allowedExtensions.join(', ')}`), false);
     }
 };
 
-// Set up file storage with limits (10MB max)
+// Enhanced storage configuration
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = `/tmp/uploads/${req.params.category}/${req.params.subcategory}`;
         try {
             fs.mkdirSync(dir, { recursive: true });
+            console.log(`Created directory: ${dir}`);
             cb(null, dir);
         } catch (err) {
+            console.error(`Directory creation error: ${err}`);
             cb(err);
         }
     },
     filename: (req, file, cb) => {
-        // Sanitize filename and add timestamp
         const sanitized = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-        cb(null, `${Date.now()}_${sanitized}`);
+        const timestamp = Date.now();
+        const finalName = `${timestamp}_${sanitized}`;
+        console.log(`File upload: ${finalName}`);
+        cb(null, finalName);
     }
 });
 
@@ -49,167 +72,264 @@ const upload = multer({
     storage,
     fileFilter,
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit
+        fileSize: 10 * 1024 * 1024, // 10MB
+        files: 1 // Single file upload
     }
 });
 
-// Serve static files with cache control
+// Serve static files with enhanced caching
 app.use('/uploads', express.static('/tmp/uploads', {
-    maxAge: '1h', // Cache for 1 hour
-    setHeaders: (res, path) => {
-        if (path.endsWith('.pdf')) {
-            res.set('Content-Type', 'application/pdf');
-        } else if (path.endsWith('.mp4')) {
-            res.set('Content-Type', 'video/mp4');
-        } else if (path.endsWith('.mov')) {
-            res.set('Content-Type', 'video/quicktime');
+    maxAge: '1h',
+    setHeaders: (res, filePath) => {
+        const ext = path.extname(filePath);
+        const contentType = {
+            '.pdf': 'application/pdf',
+            '.mp4': 'video/mp4',
+            '.mov': 'video/quicktime',
+            '.doc': 'application/msword',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }[ext];
+        
+        if (contentType) {
+            res.set('Content-Type', contentType);
         }
     }
 }));
 
-// Serve HTML file
+// Route handlers with improved error handling
+
+// Home route with version info
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'SAP-Customer.html'), {
         headers: {
-            'Cache-Control': 'no-store' // Don't cache HTML
+            'Cache-Control': 'no-store',
+            'X-API-Version': '1.0.0'
         }
     });
 });
 
-// Upload endpoint with enhanced error handling
+// Upload endpoint with detailed validation
 app.post('/upload/:category/:subcategory', upload.single('file'), (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'No file uploaded or invalid file type' 
+            console.warn('Upload attempt with no valid file');
+            return res.status(400).json({
+                success: false,
+                error: 'No file uploaded or invalid file type',
+                allowedTypes: ['PDF', 'MP4', 'MOV', 'DOC', 'DOCX'],
+                maxSize: '10MB'
             });
         }
 
-        res.json({ 
-            success: true, 
+        console.log(`Successful upload: ${req.file.filename}`);
+        res.json({
+            success: true,
             file: req.file.originalname,
-            path: `/uploads/${req.params.category}/${req.params.subcategory}/${req.file.filename}`
+            storedName: req.file.filename,
+            path: `/uploads/${req.params.category}/${req.params.subcategory}/${req.file.filename}`,
+            size: req.file.size,
+            mimetype: req.file.mimetype
         });
     } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Server error during upload' 
+        console.error('Upload error:', error.stack);
+        res.status(500).json({
+            success: false,
+            error: 'Upload failed',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
 
-// List files endpoint with improved response
-app.get('/files/:category/:subcategory', (req, res) => {
+// List files endpoint with metadata
+app.get('/files/:category/:subcategory', async (req, res) => {
     try {
         const dir = `/tmp/uploads/${req.params.category}/${req.params.subcategory}`;
         
         if (!fs.existsSync(dir)) {
-            return res.json({ 
-                success: true, 
+            console.log(`Directory not found: ${dir}`);
+            return res.json({
+                success: true,
                 files: [],
-                count: 0
+                count: 0,
+                message: 'No files found for this category'
             });
         }
 
-        fs.readdir(dir, (err, files) => {
-            if (err) {
-                console.error('List files error:', err);
-                return res.status(500).json({ 
-                    success: false, 
-                    error: 'Error reading directory' 
-                });
-            }
+        const files = await fs.promises.readdir(dir);
+        const filesWithMeta = await Promise.all(
+            files.map(async file => {
+                const stat = await fs.promises.stat(`${dir}/${file}`);
+                return {
+                    name: file,
+                    originalName: file.split('_').slice(1).join('_'),
+                    size: stat.size,
+                    modified: stat.mtime,
+                    url: `/uploads/${req.params.category}/${req.params.subcategory}/${file}`
+                };
+            })
+        );
 
-            // Sort by newest first
-            const sortedFiles = files.sort((a, b) => {
-                return fs.statSync(`${dir}/${b}`).mtime.getTime() - 
-                       fs.statSync(`${dir}/${a}`).mtime.getTime();
-            });
+        // Sort by modified time (newest first)
+        filesWithMeta.sort((a, b) => b.modified - a.modified);
 
-            res.json({ 
-                success: true, 
-                files: sortedFiles,
-                count: sortedFiles.length
-            });
+        res.json({
+            success: true,
+            files: filesWithMeta,
+            count: filesWithMeta.length,
+            directory: dir
         });
     } catch (error) {
-        console.error('List files error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Server error' 
+        console.error('File list error:', error.stack);
+        res.status(500).json({
+            success: false,
+            error: 'Could not retrieve files',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
 
-// Delete endpoint with validation
-app.delete('/delete/:category/:subcategory/:filename', (req, res) => {
+// Delete endpoint with additional checks
+app.delete('/delete/:category/:subcategory/:filename', async (req, res) => {
     try {
         const filePath = `/tmp/uploads/${req.params.category}/${req.params.subcategory}/${req.params.filename}`;
         
-        // Security check - prevent directory traversal
-        if (filePath.includes('../')) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid file path' 
+        // Security checks
+        if (filePath.includes('../') || !path.normalize(filePath).startsWith('/tmp/uploads')) {
+            console.warn(`Potential path traversal attempt: ${filePath}`);
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid file path'
             });
         }
 
         if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'File not found' 
+            console.warn(`File not found: ${filePath}`);
+            return res.status(404).json({
+                success: false,
+                error: 'File not found',
+                path: filePath
             });
         }
 
-        fs.unlink(filePath, (err) => {
-            if (err) {
-                console.error('Delete error:', err);
-                return res.status(500).json({ 
-                    success: false, 
-                    error: 'Error deleting file' 
-                });
-            }
-            res.json({ success: true });
+        await fs.promises.unlink(filePath);
+        console.log(`Deleted file: ${filePath}`);
+        
+        res.json({
+            success: true,
+            message: 'File deleted successfully',
+            deletedFile: req.params.filename
         });
     } catch (error) {
-        console.error('Delete error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Server error' 
+        console.error('Delete error:', error.stack);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete file',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
 
-// Health check endpoint
+// Enhanced health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ 
+    const health = {
         status: 'OK',
         timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+        uptime: process.uptime(),
+        memoryUsage: process.memoryUsage(),
+        env: process.env.NODE_ENV || 'development',
+        version: require('./package.json').version || 'unknown'
+    };
+    console.log('Health check:', health);
+    res.json(health);
+});
+
+// API documentation endpoint
+app.get('/api-docs', (req, res) => {
+    res.json({
+        endpoints: [
+            {
+                method: 'POST',
+                path: '/upload/:category/:subcategory',
+                description: 'Upload a file',
+                parameters: {
+                    category: 'String',
+                    subcategory: 'String'
+                },
+                body: 'multipart/form-data with file'
+            },
+            {
+                method: 'GET',
+                path: '/files/:category/:subcategory',
+                description: 'List all files'
+            },
+            {
+                method: 'DELETE',
+                path: '/delete/:category/:subcategory/:filename',
+                description: 'Delete a file'
+            }
+        ]
     });
 });
 
-// 404 handler
+// Improved 404 handler
 app.use((req, res) => {
-    res.status(404).json({ 
-        success: false, 
-        error: 'Endpoint not found' 
+    console.warn(`404: ${req.method} ${req.path}`);
+    res.status(404).json({
+        success: false,
+        error: 'Endpoint not found',
+        requested: `${req.method} ${req.path}`,
+        availableEndpoints: [
+            'POST /upload/:category/:subcategory',
+            'GET /files/:category/:subcategory',
+            'DELETE /delete/:category/:subcategory/:filename',
+            'GET /health',
+            'GET /api-docs'
+        ]
     });
 });
 
-// Error handler
+// Enhanced error handler
 app.use((err, req, res, next) => {
-    console.error('Server error:', err);
-    res.status(500).json({ 
-        success: false, 
-        error: 'Internal server error' 
+    console.error('Server error:', {
+        error: err.stack,
+        method: req.method,
+        path: req.path,
+        headers: req.headers,
+        body: req.body
+    });
+    
+    res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        requestId: req.id,
+        ...(process.env.NODE_ENV === 'development' && {
+            details: err.message,
+            stack: err.stack
+        })
     });
 });
 
-// Start server
+// Server startup with more info
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`
+    Server started at ${new Date().toISOString()}
+    Environment: ${process.env.NODE_ENV || 'development'}
+    Listening on port: ${port}
+    CORS allowed origins: 
+      - https://logisticstraining-mxoz.vercel.app
+      - http://localhost:3000
+    Upload directory: /tmp/uploads
+    Max file size: 10MB
+    `);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', err => {
+    console.error('Uncaught Exception:', err.stack);
+    process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', err => {
+    console.error('Unhandled Rejection:', err.stack);
 });
