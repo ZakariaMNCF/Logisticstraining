@@ -33,20 +33,22 @@ const fileFilter = (req, file, cb) => {
         'video/mp4',
         'video/quicktime',
         'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
     
-    const allowedExtensions = ['.pdf', '.mp4', '.mov', '.doc', '.docx'];
+    const allowedExtensions = ['.pdf', '.mp4', '.mov', '.doc', '.docx', '.xls', '.xlsx'];
     const fileExt = path.extname(file.originalname).toLowerCase();
 
-    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
+    if (allowedTypes.includes(file.mimetype) && allowedExtensions.includes(fileExt)) {
         cb(null, true);
     } else {
         cb(new Error(`Invalid file type. Allowed types: ${allowedExtensions.join(', ')}`), false);
     }
 };
 
-// Enhanced storage configuration
+// Enhanced storage configuration - keeps original filename
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = `/tmp/uploads/${req.params.category}/${req.params.subcategory}`;
@@ -60,11 +62,11 @@ const storage = multer.diskStorage({
         }
     },
     filename: (req, file, cb) => {
-        const sanitized = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const timestamp = Date.now();
-        const finalName = `${timestamp}_${sanitized}`;
-        console.log(`File upload: ${finalName}`);
-        cb(null, finalName);
+        // Keep the original filename but sanitize it
+        const originalName = file.originalname;
+        const sanitized = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        console.log(`File upload: ${sanitized}`);
+        cb(null, sanitized);
     }
 });
 
@@ -87,7 +89,9 @@ app.use('/uploads', express.static('/tmp/uploads', {
             '.mp4': 'video/mp4',
             '.mov': 'video/quicktime',
             '.doc': 'application/msword',
-            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.xls': 'application/vnd.ms-excel',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         }[ext];
         
         if (contentType) {
@@ -116,7 +120,7 @@ app.post('/upload/:category/:subcategory', upload.single('file'), (req, res) => 
             return res.status(400).json({
                 success: false,
                 error: 'No file uploaded or invalid file type',
-                allowedTypes: ['PDF', 'MP4', 'MOV', 'DOC', 'DOCX'],
+                allowedTypes: ['PDF', 'MP4', 'MOV', 'DOC', 'DOCX', 'XLS', 'XLSX'],
                 maxSize: '10MB'
             });
         }
@@ -161,7 +165,7 @@ app.get('/files/:category/:subcategory', async (req, res) => {
                 const stat = await fs.promises.stat(`${dir}/${file}`);
                 return {
                     name: file,
-                    originalName: file.split('_').slice(1).join('_'),
+                    originalName: file, // Now the stored name is the original name
                     size: stat.size,
                     modified: stat.mtime,
                     url: `/uploads/${req.params.category}/${req.params.subcategory}/${file}`
@@ -228,6 +232,9 @@ app.delete('/delete/:category/:subcategory/:filename', async (req, res) => {
         });
     }
 });
+
+// The rest of your code remains the same...
+// (health check, API docs, 404 handler, error handler, server startup)
 
 // Enhanced health check endpoint
 app.get('/health', (req, res) => {
