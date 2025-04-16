@@ -11,8 +11,9 @@ const port = process.env.PORT || 3000;
 // Enhanced CORS configuration
 const corsOptions = {
   origin: [
-    'https://zakarianmcf.github.io', // Your GitHub Pages
-    'https://logisticstraining-mxoz.vercel.app', // Your Vercel app
+    'https://zakariamncf.github.io',
+    'https://zakariamncf.github.io/Logisticstraining/SAP-Customer.html',// Your GitHub Pages
+    'https://logisticstraining-mxoz.vercel.app',// Your Vercel app
     'http://localhost:3000' // Local development
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
