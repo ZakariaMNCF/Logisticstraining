@@ -10,7 +10,7 @@ const port = process.env.PORT || 3000;
 // Enhanced CORS configuration
 app.use(cors({
     origin: [
-        'https://zakarianmcf.github.io', // Your GitHub Pages
+        'https://zakariamncf.github.io/Logisticstraining/SAP-Customer.html', // Your GitHub Pages
         'https://logisticstraining-mxoz.vercel.app/', // Your Vercel frontend
         'http://localhost:3000', // Local development
         'http://localhost:5500' // Common local server port
@@ -149,7 +149,7 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log('Allowed CORS origins:', [
-        'https://zakarianmcf.github.io',
+        'https://zakariamncf.github.io/Logisticstraining/SAP-Customer.html',
         'https://logisticstraining-mxoz.vercel.app/',
         'http://localhost:3000',
         'http://localhost:5500'
