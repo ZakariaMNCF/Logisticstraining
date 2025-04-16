@@ -105,6 +105,10 @@
             color: #e74c3c;
             font-weight: bold;
         }
+        .success {
+            color: #27ae60;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -118,6 +122,7 @@
                 <input type="file" id="fileInput" accept=".pdf,.mp4,.mov" required>
                 <button type="submit">Upload</button>
             </form>
+            <div id="uploadStatus"></div>
         </div>
 
         <!-- List of Uploaded Files -->
@@ -130,130 +135,128 @@
     </div>
 
     <script>
-        // ===== YOUR VERCEL URL =====
-        const API_BASE_URL = 'https://logisticstraining-mxoz.vercel.app/';
+        // ===== CONFIGURATION =====
+        const API_BASE_URL = 'https://logisticstraining-mxoz.vercel.app/api';
         const CATEGORY = 'sap';
         const SUBCATEGORY = 'customer_contact';
 
+        // DOM Elements
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const uploadStatus = document.getElementById('uploadStatus');
+
         // Handle form submission
-        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        uploadForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            uploadFile(CATEGORY, SUBCATEGORY);
+            await uploadFile();
         });
 
         // Function to handle file upload
-        function uploadFile(category, subcategory) {
-            const fileInput = document.getElementById('fileInput');
+        async function uploadFile() {
             const file = fileInput.files[0];
-            const submitButton = document.querySelector('#uploadForm button');
+            const submitButton = uploadForm.querySelector('button');
             
             if (!file) {
-                alert('Please select a file first!');
+                showStatus('Please select a file first!', 'error');
                 return;
             }
 
             // Show loading state
             submitButton.disabled = true;
             submitButton.textContent = 'Uploading...';
+            showStatus('Uploading file...', 'loading');
 
             const formData = new FormData();
             formData.append('file', file);
 
-            fetch(`${API_BASE_URL}/upload/${category}/${subcategory}`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Upload failed');
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    alert('File uploaded successfully!');
-                    fileInput.value = ''; // Clear file input
-                    loadFiles(category, subcategory);
-                } else {
-                    throw new Error(data.error || 'Upload failed');
-                }
-            })
-            .catch(error => {
+
+                const data = await response.json();
+                showStatus('File uploaded successfully!', 'success');
+                fileInput.value = ''; // Clear file input
+                await loadFiles();
+            } catch (error) {
                 console.error('Upload error:', error);
-                alert(`Error: ${error.message}`);
-            })
-            .finally(() => {
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
                 submitButton.disabled = false;
                 submitButton.textContent = 'Upload';
-            });
+            }
         }
 
         // Function to load uploaded files
-        function loadFiles(category, subcategory) {
-            const fileList = document.getElementById('fileList');
+        async function loadFiles() {
             fileList.innerHTML = '<li class="loading">Loading files...</li>';
             
-            fetch(`${API_BASE_URL}/files/${category}/${subcategory}`)
-            .then(response => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/files`);
+                
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error('Failed to load files');
                 }
-                return response.json();
-            })
-            .then(data => {
+
+                const data = await response.json();
                 fileList.innerHTML = '';
                 
                 if (data.files && data.files.length > 0) {
                     data.files.forEach(file => {
                         const listItem = document.createElement('li');
                         listItem.innerHTML = `
-                            <a href="${API_BASE_URL}/uploads/${category}/${subcategory}/${file}" target="_blank" download="${file}">${file}</a>
-                            <button onclick="deleteFile('${category}', '${subcategory}', '${file}')">Delete</button>
+                            <a href="${file.url}" target="_blank" download="${file.name}">${file.name}</a>
+                            <button onclick="deleteFile('${file.name}')">Delete</button>
                         `;
                         fileList.appendChild(listItem);
                     });
                 } else {
                     fileList.innerHTML = '<li>No files uploaded yet</li>';
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error loading files:', error);
                 fileList.innerHTML = '<li class="error">Error loading files. Please refresh.</li>';
-            });
+            }
         }
 
         // Function to delete a file
-        function deleteFile(category, subcategory, filename) {
+        async function deleteFile(filename) {
             if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
                 return;
             }
 
-            fetch(`${API_BASE_URL}/delete/${category}/${subcategory}/${filename}`, {
-                method: 'DELETE'
-            })
-            .then(response => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/delete/${filename}`, {
+                    method: 'DELETE'
+                });
+
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error('Delete failed');
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    loadFiles(category, subcategory);
-                } else {
-                    throw new Error(data.error || 'Delete failed');
-                }
-            })
-            .catch(error => {
+
+                await loadFiles();
+                showStatus('File deleted successfully', 'success');
+            } catch (error) {
                 console.error('Delete error:', error);
-                alert(`Error: ${error.message}`);
-            });
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Helper function to show status messages
+        function showStatus(message, type) {
+            uploadStatus.textContent = message;
+            uploadStatus.className = type;
         }
 
         // Load files when the page loads
-        window.addEventListener('DOMContentLoaded', () => {
-            loadFiles(CATEGORY, SUBCATEGORY);
-        });
+        document.addEventListener('DOMContentLoaded', loadFiles);
     </script>
 </body>
 </html>
