@@ -6,52 +6,65 @@
     <title>SAP - Contact Client</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* [Previous CSS remains exactly the same] */
-        /* Keep all your existing styles */
+        /* [Keep your existing CSS styles] */
     </style>
 </head>
 <body>
-    <!-- [Previous HTML structure remains exactly the same] -->
-    <!-- Keep all your existing HTML -->
+    <!-- [Keep your existing HTML structure] -->
 
     <script>
-        // IMPORTANT: Updated configuration for Vercel
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000' 
-            : 'https://logisticstraining.vercel.app';
+        // Dynamic API URL configuration
+        const getApiBaseUrl = () => {
+            if (window.location.hostname === 'localhost') {
+                return 'http://localhost:3000';
+            }
+            // Check if we're on GitHub Pages
+            if (window.location.hostname.includes('github.io')) {
+                return 'https://logisticstraining.vercel.app';
+            }
+            // Default to current origin for Vercel deployment
+            return window.location.origin;
+        };
         
-        // Enhanced API request function
-        async function makeApiRequest(endpoint, method = 'GET', body = null) {
+        const API_BASE_URL = getApiBaseUrl();
+        
+        // Enhanced API call function
+        const apiCall = async (endpoint, method = 'GET', body = null) => {
             const url = `${API_BASE_URL}/api${endpoint}`;
             const options = {
                 method,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
                 },
                 credentials: 'include'
             };
-
+            
             if (body) {
-                options.body = JSON.stringify(body);
+                if (body instanceof FormData) {
+                    // Don't set Content-Type for FormData - let browser set it
+                    options.body = body;
+                } else {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(body);
+                }
             }
-
+            
             try {
                 const response = await fetch(url, options);
                 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.message || `HTTP error! status: ${response.status}`);
                 }
                 
                 return await response.json();
             } catch (error) {
-                console.error(`API request failed to ${endpoint}:`, error);
+                console.error(`API call to ${endpoint} failed:`, error);
                 throw error;
             }
-        }
+        };
 
-        // Updated uploadFile function for Vercel compatibility
+        // Updated uploadFile function
         async function uploadFile() {
             const file = fileInput.files[0];
             if (!file) {
@@ -59,66 +72,43 @@
                 return;
             }
 
-            // Client-side validation
-            const maxSize = 50 * 1024 * 1024; // 50MB
-            if (file.size > maxSize) {
-                showStatus(`Fichier trop volumineux (max ${formatFileSize(maxSize)})`, 'error');
-                return;
-            }
-
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                // UI updates
+                showStatus('Upload en cours...', 'loading');
                 uploadBtn.disabled = true;
-                progressContainer.style.display = 'block';
-                showStatus('Envoi du fichier en cours...', 'loading');
-
-                const response = await fetch(`${API_BASE_URL}/api/upload`, {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include'
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Upload failed');
-                }
-
-                const data = await response.json();
-                showStatus('Fichier uploadé avec succès!', 'success');
-                resetUploadForm();
+                
+                const data = await apiCall('/upload', 'POST', formData);
+                
+                showStatus('Upload réussi!', 'success');
+                fileInput.value = '';
+                selectedFileName.textContent = '';
                 await loadFiles();
             } catch (error) {
-                console.error('Upload error:', error);
-                showStatus(`Erreur: ${error.message.includes('Failed to fetch') ? 'Connexion au serveur échouée' : error.message}`, 'error');
+                showStatus(`Erreur: ${error.message}`, 'error');
             } finally {
                 uploadBtn.disabled = false;
-                progressContainer.style.display = 'none';
-                progressBar.style.width = '0%';
             }
         }
 
         // Updated loadFiles function
         async function loadFiles() {
-            fileList.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Chargement des fichiers...</p>
-                </div>
-            `;
+            fileList.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Chargement des fichiers...</p></div>';
             
             try {
-                // Using our new makeApiRequest helper
-                const data = await makeApiRequest('/files');
-                renderFileList(data.files);
+                const data = await apiCall('/files');
+                
+                if (data.files && data.files.length > 0) {
+                    renderFileList(data.files);
+                } else {
+                    fileList.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Aucun fichier disponible</p></div>';
+                }
             } catch (error) {
-                console.error('Error loading files:', error);
                 fileList.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <p>${error.message.includes('Failed to fetch') ? 'Impossible de charger les fichiers' : error.message}</p>
+                        <p>${error.message || 'Erreur de chargement'}</p>
                         <button class="btn" onclick="loadFiles()">
                             <i class="fas fa-sync-alt"></i> Réessayer
                         </button>
@@ -129,31 +119,28 @@
 
         // Updated deleteFile function
         async function deleteFile(filename) {
-            if (!confirm(`Voulez-vous vraiment supprimer "${decodeURIComponent(filename)}" ?`)) {
-                return;
-            }
+            if (!confirm(`Voulez-vous vraiment supprimer "${filename}" ?`)) return;
             
             try {
                 showStatus('Suppression en cours...', 'loading');
-                await makeApiRequest(`/delete/${encodeURIComponent(filename)}`, 'DELETE');
+                await apiCall(`/delete/${encodeURIComponent(filename)}`, 'DELETE');
                 showStatus('Fichier supprimé avec succès', 'success');
                 await loadFiles();
             } catch (error) {
-                console.error('Delete error:', error);
-                showStatus(`Erreur: ${error.message.includes('Failed to fetch') ? 'Connexion au serveur échouée' : error.message}`, 'error');
+                showStatus(`Erreur: ${error.message}`, 'error');
             }
         }
 
-        // [Keep all other existing functions unchanged]
-        // formatFileSize, getFileIcon, showStatus, etc.
-
-        // Initialize the application
+        // Initialize with debug info
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('API Base URL:', API_BASE_URL);
             setupEventListeners();
             loadFiles();
             
-            // Log the API base URL for debugging
-            console.log('API Base URL:', API_BASE_URL);
+            // Test API connection
+            apiCall('/health')
+                .then(data => console.log('API Health:', data))
+                .catch(err => console.error('API Health Check Failed:', err));
         });
     </script>
 </body>
