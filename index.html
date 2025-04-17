@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAP - Contact Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 8px;
+        }
+        .upload-section input[type="file"] {
+            display: block;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            width: 97%;
+            cursor: pointer;
+        }
+        .upload-section button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-section button:hover {
+            background-color: #2980b9;
+        }
+        .file-list {
+            margin-top: 20px;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 8px;
+        }
+        .file-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .file-list ul li {
+            margin: 10px 0;
+            padding: 10px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-list ul li a {
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+        }
+        .file-list ul li button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .loading {
+            color: #7f8c8d;
+        }
+        .error {
+            color: #e74c3c;
+            background-color: #fadbd8;
+        }
+        .success {
+            color: #27ae60;
+            background-color: #d5f5e3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SAP - Contact Client</h1>
+
+        <div class="upload-section">
+            <h2>Uploader un PDF ou une Vidéo</h2>
+            <form id="uploadForm">
+                <input type="file" id="fileInput" accept=".pdf,.mp4,.mov" required>
+                <button type="submit">Uploader</button>
+            </form>
+            <div id="uploadStatus" class="status"></div>
+        </div>
+
+        <div class="file-list">
+            <h2>Fichiers Uploadés</h2>
+            <ul id="fileList">
+                <li>Chargement des fichiers...</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://logisticstraining.vercel.app';
+
+        // Éléments du DOM
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const uploadStatus = document.getElementById('uploadStatus');
+
+        // Gérer l'upload
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) {
+                showStatus('Veuillez sélectionner un fichier', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showStatus('Upload en cours...', 'loading');
+                const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Échec de l\'upload');
+                }
+
+                showStatus('Fichier uploadé avec succès!', 'success');
+                fileInput.value = '';
+                loadFiles();
+            } catch (error) {
+                showStatus(`Erreur: ${error.message}`, 'error');
+            }
+        });
+
+        // Charger les fichiers
+        async function loadFiles() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/files`);
+                if (!response.ok) {
+                    throw new Error('Échec du chargement');
+                }
+
+                const data = await response.json();
+                fileList.innerHTML = '';
+
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(file => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <a href="${API_BASE_URL}${file.url}" target="_blank">${file.name}</a>
+                            <button onclick="deleteFile('${file.name}')">Supprimer</button>
+                        `;
+                        fileList.appendChild(li);
+                    });
+                } else {
+                    fileList.innerHTML = '<li>Aucun fichier uploadé</li>';
+                }
+            } catch (error) {
+                fileList.innerHTML = '<li>Erreur de chargement</li>';
+            }
+        }
+
+        // Supprimer un fichier
+        async function deleteFile(filename) {
+            if (!confirm(`Supprimer "${filename}"?`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/delete/${filename}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Échec de la suppression');
+                }
+                
+                showStatus('Fichier supprimé', 'success');
+                loadFiles();
+            } catch (error) {
+                showStatus(`Erreur: ${error.message}`, 'error');
+            }
+        }
+
+        // Afficher les messages de statut
+        function showStatus(message, type) {
+            uploadStatus.textContent = message;
+            uploadStatus.className = `status ${type}`;
+        }
+
+        // Charger les fichiers au démarrage
+        window.onload = loadFiles;
+        window.deleteFile = deleteFile;
+    </script>
+</body>
+</html>
