@@ -50,9 +50,14 @@
             border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
+            transition: background-color 0.3s;
         }
         .upload-section button:hover {
             background-color: #2980b9;
+        }
+        .upload-section button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
         }
         .file-list {
             margin-top: 20px;
@@ -78,6 +83,15 @@
             text-decoration: none;
             color: #3498db;
             font-weight: bold;
+            flex-grow: 1;
+        }
+        .file-list ul li a:hover {
+            text-decoration: underline;
+        }
+        .file-list ul li .file-info {
+            margin-right: 15px;
+            color: #7f8c8d;
+            font-size: 0.9em;
         }
         .file-list ul li button {
             background-color: #e74c3c;
@@ -86,11 +100,16 @@
             border-radius: 4px;
             padding: 5px 10px;
             cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .file-list ul li button:hover {
+            background-color: #c0392b;
         }
         .status {
             margin-top: 10px;
             padding: 10px;
             border-radius: 4px;
+            text-align: center;
         }
         .loading {
             color: #7f8c8d;
@@ -104,6 +123,20 @@
             color: #27ae60;
             background-color: #d5f5e3;
         }
+        .progress-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .progress-bar {
+            height: 20px;
+            background-color: #3498db;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
     </style>
 </head>
 <body>
@@ -113,8 +146,11 @@
         <div class="upload-section">
             <h2>Uploader un PDF ou une Vidéo</h2>
             <form id="uploadForm">
-                <input type="file" id="fileInput" accept=".pdf,.mp4,.mov" required>
-                <button type="submit">Uploader</button>
+                <input type="file" id="fileInput" accept=".pdf,.mp4,.mov,.avi,.mkv,.doc,.docx,.xls,.xlsx" required>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <button type="submit" id="uploadButton">Uploader</button>
             </form>
             <div id="uploadStatus" class="status"></div>
         </div>
@@ -128,100 +164,28 @@
     </div>
 
     <script>
-        // Configuration de base
-        const API_BASE_URL = 'https://logisticstraining.vercel.app';
+        // Configuration
+        const API_BASE_URL = window.location.origin; // Automatically adapts to deployment
         
-        // Éléments du DOM
+        // DOM Elements
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
         const uploadStatus = document.getElementById('uploadStatus');
+        const uploadButton = document.getElementById('uploadButton');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
 
-        // Gestion de l'upload
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await uploadFile();
-        });
-
-        // Fonction d'upload
-        async function uploadFile() {
-            const file = fileInput.files[0];
-            if (!file) {
-                showStatus('Veuillez sélectionner un fichier', 'error');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                showStatus('Upload en cours...', 'loading');
-                const response = await fetch(`${API_BASE_URL}/api/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error('Erreur serveur');
-                
-                const data = await response.json();
-                showStatus('Upload réussi!', 'success');
-                fileInput.value = '';
-                await loadFiles();
-            } catch (error) {
-                showStatus(`Erreur: ${error.message}`, 'error');
-                console.error('Erreur:', error);
-            }
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // Chargement des fichiers
-        async function loadFiles() {
-            fileList.innerHTML = '<li>Chargement en cours...</li>';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/files`);
-                if (!response.ok) throw new Error('Erreur de chargement');
-                
-                const data = await response.json();
-                fileList.innerHTML = '';
-                
-                if (data.files && data.files.length > 0) {
-                    data.files.forEach(file => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <a href="${API_BASE_URL}${file.url}" target="_blank" download="${file.name}">${file.name}</a>
-                            <button onclick="deleteFile('${file.name}')">Supprimer</button>
-                        `;
-                        fileList.appendChild(li);
-                    });
-                } else {
-                    fileList.innerHTML = '<li>Aucun fichier uploadé</li>';
-                }
-            } catch (error) {
-                fileList.innerHTML = '<li class="error">Erreur de chargement</li>';
-                console.error('Erreur:', error);
-            }
-        }
-
-        // Suppression de fichier
-        async function deleteFile(filename) {
-            if (!confirm(`Voulez-vous vraiment supprimer "${filename}" ?`)) return;
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/delete/${filename}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) throw new Error('Erreur de suppression');
-                
-                showStatus('Fichier supprimé avec succès', 'success');
-                await loadFiles();
-            } catch (error) {
-                showStatus(`Erreur: ${error.message}`, 'error');
-                console.error('Erreur:', error);
-            }
-        }
-
-        // Affichage des messages de statut
+        // Show status message
         function showStatus(message, type) {
             uploadStatus.textContent = message;
             uploadStatus.className = `status ${type}`;
@@ -231,10 +195,147 @@
             }, 5000);
         }
 
-        // Fonction globale pour la suppression
+        // Upload file with progress tracking
+        async function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showStatus('Veuillez sélectionner un fichier', 'error');
+                return;
+            }
+
+            // Check file size (client-side validation)
+            const maxSize = 50 * 1024 * 1024; // 50MB
+            if (file.size > maxSize) {
+                showStatus(`Fichier trop volumineux (max ${formatFileSize(maxSize)})`, 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // Show upload in progress
+                uploadButton.disabled = true;
+                progressContainer.style.display = 'block';
+                showStatus('Upload en cours...', 'loading');
+
+                const xhr = new XMLHttpRequest();
+                
+                // Progress tracking
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressBar.style.width = percentComplete + '%';
+                    }
+                });
+
+                // Set up the request
+                xhr.open('POST', `${API_BASE_URL}/api/upload`, true);
+                xhr.setRequestHeader('Accept', 'application/json');
+                
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        const response = JSON.parse(xhr.responseText);
+                        showStatus('Upload réussi!', 'success');
+                        fileInput.value = '';
+                        loadFiles();
+                    } else {
+                        let errorMessage = 'Erreur serveur';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            errorMessage = errorResponse.error || errorMessage;
+                        } catch (e) {
+                            console.error('Error parsing error response:', e);
+                        }
+                        throw new Error(errorMessage);
+                    }
+                };
+                
+                xhr.onerror = () => {
+                    throw new Error('Erreur réseau');
+                };
+                
+                xhr.send(formData);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus(`Erreur: ${error.message}`, 'error');
+            } finally {
+                uploadButton.disabled = false;
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
+            }
+        }
+
+        // Load files from server
+        async function loadFiles() {
+            fileList.innerHTML = '<li>Chargement en cours...</li>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/files`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Erreur de chargement');
+                }
+                
+                const data = await response.json();
+                fileList.innerHTML = '';
+                
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(file => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <a href="${API_BASE_URL}${file.url}" target="_blank" download="${file.name}">
+                                ${file.name}
+                            </a>
+                            <span class="file-info">${formatFileSize(file.size)}</span>
+                            <button onclick="deleteFile('${file.name}')">Supprimer</button>
+                        `;
+                        fileList.appendChild(li);
+                    });
+                } else {
+                    fileList.innerHTML = '<li>Aucun fichier uploadé</li>';
+                }
+            } catch (error) {
+                console.error('Load files error:', error);
+                fileList.innerHTML = '<li class="error">Erreur de chargement des fichiers</li>';
+            }
+        }
+
+        // Delete file
+        async function deleteFile(filename) {
+            if (!confirm(`Voulez-vous vraiment supprimer "${filename}" ?`)) return;
+            
+            try {
+                showStatus('Suppression en cours...', 'loading');
+                const response = await fetch(`${API_BASE_URL}/api/delete/${filename}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Erreur de suppression');
+                }
+                
+                showStatus('Fichier supprimé avec succès', 'success');
+                await loadFiles();
+            } catch (error) {
+                console.error('Delete error:', error);
+                showStatus(`Erreur: ${error.message}`, 'error');
+            }
+        }
+
+        // Event listeners
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await uploadFile();
+        });
+
+        // Make deleteFile available globally
         window.deleteFile = deleteFile;
 
-        // Chargement initial
+        // Initial load
         document.addEventListener('DOMContentLoaded', loadFiles);
     </script>
 </body>
