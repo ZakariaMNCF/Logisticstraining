@@ -3,25 +3,21 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["**/*"],
-        "maxLambdaSize": "50mb"
-      }
+      "use": "@vercel/node"
+    },
+    {
+      "src": "SAP-Customer.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server.js",
-      "methods": ["GET", "POST", "DELETE", "OPTIONS"]
+      "dest": "server.js"
     },
     {
       "src": "/(.*)",
-      "dest": "SAP-Customer.html",
-      "headers": {
-        "Content-Type": "text/html"
-      }
+      "dest": "SAP-Customer.html"
     }
   ]
 }
