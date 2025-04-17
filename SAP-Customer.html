@@ -7,24 +7,66 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            margin: 0;
             padding: 20px;
-            text-align: center;
+            background-color: #f5f7fa;
         }
         .container {
             max-width: 800px;
             margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .upload-section {
+            border: 2px dashed #3498db;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        #fileInput {
+            display: none;
+        }
+        .file-label {
+            display: block;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            text-align: center;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #uploadBtn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        #fileList {
+            margin-top: 20px;
         }
         .status {
             padding: 10px;
-            margin: 20px 0;
+            margin: 10px 0;
             border-radius: 5px;
         }
         .success {
-            background-color: #d4edda;
+            background: #d4edda;
             color: #155724;
         }
         .error {
-            background-color: #f8d7da;
+            background: #f8d7da;
             color: #721c24;
         }
     </style>
@@ -32,52 +74,109 @@
 <body>
     <div class="container">
         <h1>SAP - Contact Client</h1>
-        <div id="statusMessage" class="status"></div>
-        <p>Basic functionality check:</p>
-        <button onclick="testApi()">Test API Connection</button>
-        <div id="apiResponse"></div>
+        
+        <div class="upload-section">
+            <h2>Uploader un fichier</h2>
+            <label for="fileInput" class="file-label">
+                <i class="fas fa-cloud-upload-alt"></i> Sélectionner un fichier
+            </label>
+            <input type="file" id="fileInput">
+            <button id="uploadBtn">Uploader</button>
+            <div id="statusMessage" class="status"></div>
+        </div>
+        
+        <div id="fileList">
+            <h2>Fichiers disponibles</h2>
+            <p>Chargement en cours...</p>
+        </div>
     </div>
 
     <script>
-        // 1. Dynamic API URL that always works
-        const API_BASE_URL = window.location.hostname === 'zakariamncf.github.io' 
-            ? 'https://logisticstraining.vercel.app' 
-            : window.location.origin;
+        // Configuration
+        const API_BASE_URL = 'https://logisticstraining.vercel.app';
+        
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const fileList = document.getElementById('fileList');
 
-        // 2. Test API connection
-        async function testApi() {
-            const statusElement = document.getElementById('statusMessage');
-            const responseElement = document.getElementById('apiResponse');
-            
+        // Upload file
+        async function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showStatus('Veuillez sélectionner un fichier', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
             try {
-                statusElement.textContent = 'Testing API connection...';
-                statusElement.className = 'status';
+                showStatus('Upload en cours...');
+                uploadBtn.disabled = true;
                 
-                const response = await fetch(`${API_BASE_URL}/api/health`);
+                const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+
                 const data = await response.json();
-                
-                statusElement.textContent = 'API is working correctly!';
-                statusElement.className = 'status success';
-                responseElement.innerHTML = `
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
-                    <p>API Base URL: ${API_BASE_URL}</p>
-                `;
+                showStatus('Fichier uploadé avec succès!', 'success');
+                loadFiles();
             } catch (error) {
-                statusElement.textContent = 'API connection failed';
-                statusElement.className = 'status error';
-                responseElement.innerHTML = `
-                    <p>Error: ${error.message}</p>
-                    <p>Make sure your server is deployed correctly on Vercel.</p>
-                    <p>Current API URL: ${API_BASE_URL}</p>
-                `;
+                showStatus(`Erreur: ${error.message}`, 'error');
+            } finally {
+                uploadBtn.disabled = false;
             }
         }
 
-        // 3. Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Application started');
-            console.log('API Base URL:', API_BASE_URL);
-        });
+        // Load files
+        async function loadFiles() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/files`);
+                const data = await response.json();
+                
+                if (data.files && data.files.length > 0) {
+                    fileList.innerHTML = `
+                        <h2>Fichiers disponibles</h2>
+                        <ul>
+                            ${data.files.map(file => `
+                                <li>${file.filename} (${formatFileSize(file.size)})</li>
+                            `).join('')}
+                        </ul>
+                    `;
+                } else {
+                    fileList.innerHTML = '<p>Aucun fichier disponible</p>';
+                }
+            } catch (error) {
+                fileList.innerHTML = '<p>Erreur de chargement des fichiers</p>';
+            }
+        }
+
+        // Helper functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showStatus(message, type = '') {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+        }
+
+        // Event listeners
+        uploadBtn.addEventListener('click', uploadFile);
+
+        // Initialize
+        loadFiles();
     </script>
 </body>
 </html>
