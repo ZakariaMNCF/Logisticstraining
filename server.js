@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
-const path = require('path');
 const admin = require('firebase-admin');
 
 // Initialize Firebase
@@ -27,8 +26,7 @@ app.use(cors({
   ],
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  exposedHeaders: ['Content-Disposition']
+  credentials: true
 }));
 
 // Middleware
@@ -42,7 +40,7 @@ const upload = multer({
   }
 });
 
-// Upload endpoint
+// API Endpoints
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -50,7 +48,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const fileName = uniqueSuffix + path.extname(req.file.originalname);
+    const fileName = uniqueSuffix + '-' + req.file.originalname;
     const file = bucket.file(fileName);
 
     await file.save(req.file.buffer, {
@@ -73,7 +71,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-// List files endpoint
 app.get('/api/files', async (req, res) => {
   try {
     const [files] = await bucket.getFiles();
@@ -85,7 +82,7 @@ app.get('/api/files', async (req, res) => {
       });
 
       return {
-        name: metadata.name,
+        name: metadata.name.split('-').slice(2).join('-'), // Remove timestamp prefix
         url: url,
         size: parseInt(metadata.size),
         uploaded: metadata.timeCreated
@@ -99,11 +96,19 @@ app.get('/api/files', async (req, res) => {
   }
 });
 
-// Delete file endpoint
 app.delete('/api/delete/:filename', async (req, res) => {
   try {
-    const file = bucket.file(req.params.filename);
-    await file.delete();
+    // Reconstruct the original filename with timestamp
+    const [files] = await bucket.getFiles();
+    const fileToDelete = files.find(f => 
+      f.name.endsWith(req.params.filename)
+    );
+    
+    if (!fileToDelete) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    await fileToDelete.delete();
     res.json({ success: true });
   } catch (error) {
     console.error('Delete error:', error);
@@ -111,9 +116,13 @@ app.delete('/api/delete/:filename', async (req, res) => {
   }
 });
 
-// Health check
+// Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', storage: 'Firebase' });
+  res.json({ 
+    status: 'OK',
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
+// Export for Vercel
 module.exports = app;
