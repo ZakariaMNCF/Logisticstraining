@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAP - Customer Contact</title>
+    <title>SAP - Contact Client</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -24,10 +24,6 @@
             text-align: center;
             color: #2c3e50;
             margin-bottom: 20px;
-        }
-        h2 {
-            color: #34495e;
-            margin-bottom: 15px;
         }
         .upload-section {
             margin-bottom: 30px;
@@ -83,9 +79,6 @@
             color: #3498db;
             font-weight: bold;
         }
-        .file-list ul li a:hover {
-            text-decoration: underline;
-        }
         .file-list ul li button {
             background-color: #e74c3c;
             color: white;
@@ -94,169 +87,142 @@
             padding: 5px 10px;
             cursor: pointer;
         }
-        .file-list ul li button:hover {
-            background-color: #c0392b;
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
         }
         .loading {
             color: #7f8c8d;
-            font-style: italic;
         }
         .error {
             color: #e74c3c;
-            font-weight: bold;
+            background-color: #fadbd8;
         }
         .success {
             color: #27ae60;
-            font-weight: bold;
+            background-color: #d5f5e3;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>SAP - Customer Contact</h1>
+        <h1>SAP - Contact Client</h1>
 
-        <!-- Upload Section -->
         <div class="upload-section">
-            <h2>Upload PDF or Video</h2>
+            <h2>Uploader un PDF ou une Vidéo</h2>
             <form id="uploadForm">
                 <input type="file" id="fileInput" accept=".pdf,.mp4,.mov" required>
-                <button type="submit">Upload</button>
+                <button type="submit">Uploader</button>
             </form>
-            <div id="uploadStatus"></div>
+            <div id="uploadStatus" class="status"></div>
         </div>
 
-        <!-- List of Uploaded Files -->
         <div class="file-list">
-            <h2>Uploaded Files</h2>
+            <h2>Fichiers Uploadés</h2>
             <ul id="fileList">
-                <li class="loading">Loading files...</li>
+                <li>Chargement des fichiers...</li>
             </ul>
         </div>
     </div>
 
     <script>
-        // ===== CONFIGURATION =====
-        const API_BASE_URL = 'https://logisticstraining-mxoz.vercel.app/api';
-        const CATEGORY = 'sap';
-        const SUBCATEGORY = 'customer_contact';
+        const API_BASE_URL = 'https://logisticstraining-mxoz.vercel.app';
 
-        // DOM Elements
+        // Éléments du DOM
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
         const uploadStatus = document.getElementById('uploadStatus');
 
-        // Handle form submission
-        uploadForm.addEventListener('submit', async function(e) {
+        // Gérer l'upload
+        uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await uploadFile();
-        });
-
-        // Function to handle file upload
-        async function uploadFile() {
             const file = fileInput.files[0];
-            const submitButton = uploadForm.querySelector('button');
-            
             if (!file) {
-                showStatus('Please select a file first!', 'error');
+                showStatus('Veuillez sélectionner un fichier', 'error');
                 return;
             }
-
-            // Show loading state
-            submitButton.disabled = true;
-            submitButton.textContent = 'Uploading...';
-            showStatus('Uploading file...', 'loading');
 
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const response = await fetch(`${API_BASE_URL}/upload`, {
+                showStatus('Upload en cours...', 'loading');
+                const response = await fetch(`${API_BASE_URL}/api/upload`, {
                     method: 'POST',
                     body: formData
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Upload failed');
+                    throw new Error('Échec de l\'upload');
                 }
 
-                const data = await response.json();
-                showStatus('File uploaded successfully!', 'success');
-                fileInput.value = ''; // Clear file input
-                await loadFiles();
+                showStatus('Fichier uploadé avec succès!', 'success');
+                fileInput.value = '';
+                loadFiles();
             } catch (error) {
-                console.error('Upload error:', error);
-                showStatus(`Error: ${error.message}`, 'error');
-            } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Upload';
+                showStatus(`Erreur: ${error.message}`, 'error');
             }
-        }
+        });
 
-        // Function to load uploaded files
+        // Charger les fichiers
         async function loadFiles() {
-            fileList.innerHTML = '<li class="loading">Loading files...</li>';
-            
             try {
-                const response = await fetch(`${API_BASE_URL}/files`);
-                
+                const response = await fetch(`${API_BASE_URL}/api/files`);
                 if (!response.ok) {
-                    throw new Error('Failed to load files');
+                    throw new Error('Échec du chargement');
                 }
 
                 const data = await response.json();
                 fileList.innerHTML = '';
-                
+
                 if (data.files && data.files.length > 0) {
                     data.files.forEach(file => {
-                        const listItem = document.createElement('li');
-                        listItem.innerHTML = `
-                            <a href="${file.url}" target="_blank" download="${file.name}">${file.name}</a>
-                            <button onclick="deleteFile('${file.name}')">Delete</button>
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <a href="${API_BASE_URL}${file.url}" target="_blank">${file.name}</a>
+                            <button onclick="deleteFile('${file.name}')">Supprimer</button>
                         `;
-                        fileList.appendChild(listItem);
+                        fileList.appendChild(li);
                     });
                 } else {
-                    fileList.innerHTML = '<li>No files uploaded yet</li>';
+                    fileList.innerHTML = '<li>Aucun fichier uploadé</li>';
                 }
             } catch (error) {
-                console.error('Error loading files:', error);
-                fileList.innerHTML = '<li class="error">Error loading files. Please refresh.</li>';
+                fileList.innerHTML = '<li>Erreur de chargement</li>';
             }
         }
 
-        // Function to delete a file
+        // Supprimer un fichier
         async function deleteFile(filename) {
-            if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
-                return;
-            }
-
+            if (!confirm(`Supprimer "${filename}"?`)) return;
+            
             try {
-                const response = await fetch(`${API_BASE_URL}/delete/${filename}`, {
+                const response = await fetch(`${API_BASE_URL}/api/delete/${filename}`, {
                     method: 'DELETE'
                 });
-
+                
                 if (!response.ok) {
-                    throw new Error('Delete failed');
+                    throw new Error('Échec de la suppression');
                 }
-
-                await loadFiles();
-                showStatus('File deleted successfully', 'success');
+                
+                showStatus('Fichier supprimé', 'success');
+                loadFiles();
             } catch (error) {
-                console.error('Delete error:', error);
-                showStatus(`Error: ${error.message}`, 'error');
+                showStatus(`Erreur: ${error.message}`, 'error');
             }
         }
 
-        // Helper function to show status messages
+        // Afficher les messages de statut
         function showStatus(message, type) {
             uploadStatus.textContent = message;
-            uploadStatus.className = type;
+            uploadStatus.className = `status ${type}`;
         }
 
-        // Load files when the page loads
-        document.addEventListener('DOMContentLoaded', loadFiles);
+        // Charger les fichiers au démarrage
+        window.onload = loadFiles;
+        window.deleteFile = deleteFile;
     </script>
 </body>
 </html>
