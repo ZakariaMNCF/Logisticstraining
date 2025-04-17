@@ -13,7 +13,10 @@
     },
     {
       "src": "/(.*)",
-      "dest": "SAP-Customer.html"
+      "dest": "SAP-Customer.html",
+      "headers": {
+        "Content-Type": "text/html"
+      }
     }
   ]
 }
