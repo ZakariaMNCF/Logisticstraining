@@ -94,6 +94,7 @@
         }
         .loading {
             color: #7f8c8d;
+            background-color: #f2f3f4;
         }
         .error {
             color: #e74c3c;
@@ -127,17 +128,23 @@
     </div>
 
     <script>
+        // Configuration de base
         const API_BASE_URL = 'https://logisticstraining.vercel.app';
-
+        
         // Éléments du DOM
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
         const uploadStatus = document.getElementById('uploadStatus');
 
-        // Gérer l'upload
+        // Gestion de l'upload
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            await uploadFile();
+        });
+
+        // Fonction d'upload
+        async function uploadFile() {
             const file = fileInput.files[0];
             if (!file) {
                 showStatus('Veuillez sélectionner un fichier', 'error');
@@ -154,34 +161,34 @@
                     body: formData
                 });
 
-                if (!response.ok) {
-                    throw new Error('Échec de l\'upload');
-                }
-
-                showStatus('Fichier uploadé avec succès!', 'success');
+                if (!response.ok) throw new Error('Erreur serveur');
+                
+                const data = await response.json();
+                showStatus('Upload réussi!', 'success');
                 fileInput.value = '';
-                loadFiles();
+                await loadFiles();
             } catch (error) {
                 showStatus(`Erreur: ${error.message}`, 'error');
+                console.error('Erreur:', error);
             }
-        });
+        }
 
-        // Charger les fichiers
+        // Chargement des fichiers
         async function loadFiles() {
+            fileList.innerHTML = '<li>Chargement en cours...</li>';
+            
             try {
                 const response = await fetch(`${API_BASE_URL}/api/files`);
-                if (!response.ok) {
-                    throw new Error('Échec du chargement');
-                }
-
+                if (!response.ok) throw new Error('Erreur de chargement');
+                
                 const data = await response.json();
                 fileList.innerHTML = '';
-
+                
                 if (data.files && data.files.length > 0) {
                     data.files.forEach(file => {
                         const li = document.createElement('li');
                         li.innerHTML = `
-                            <a href="${API_BASE_URL}${file.url}" target="_blank">${file.name}</a>
+                            <a href="${API_BASE_URL}${file.url}" target="_blank" download="${file.name}">${file.name}</a>
                             <button onclick="deleteFile('${file.name}')">Supprimer</button>
                         `;
                         fileList.appendChild(li);
@@ -190,39 +197,45 @@
                     fileList.innerHTML = '<li>Aucun fichier uploadé</li>';
                 }
             } catch (error) {
-                fileList.innerHTML = '<li>Erreur de chargement</li>';
+                fileList.innerHTML = '<li class="error">Erreur de chargement</li>';
+                console.error('Erreur:', error);
             }
         }
 
-        // Supprimer un fichier
+        // Suppression de fichier
         async function deleteFile(filename) {
-            if (!confirm(`Supprimer "${filename}"?`)) return;
+            if (!confirm(`Voulez-vous vraiment supprimer "${filename}" ?`)) return;
             
             try {
                 const response = await fetch(`${API_BASE_URL}/api/delete/${filename}`, {
                     method: 'DELETE'
                 });
                 
-                if (!response.ok) {
-                    throw new Error('Échec de la suppression');
-                }
+                if (!response.ok) throw new Error('Erreur de suppression');
                 
-                showStatus('Fichier supprimé', 'success');
-                loadFiles();
+                showStatus('Fichier supprimé avec succès', 'success');
+                await loadFiles();
             } catch (error) {
                 showStatus(`Erreur: ${error.message}`, 'error');
+                console.error('Erreur:', error);
             }
         }
 
-        // Afficher les messages de statut
+        // Affichage des messages de statut
         function showStatus(message, type) {
             uploadStatus.textContent = message;
             uploadStatus.className = `status ${type}`;
+            setTimeout(() => {
+                uploadStatus.textContent = '';
+                uploadStatus.className = 'status';
+            }, 5000);
         }
 
-        // Charger les fichiers au démarrage
-        window.onload = loadFiles;
+        // Fonction globale pour la suppression
         window.deleteFile = deleteFile;
+
+        // Chargement initial
+        document.addEventListener('DOMContentLoaded', loadFiles);
     </script>
 </body>
 </html>
