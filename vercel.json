@@ -9,7 +9,8 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server.js"
+      "dest": "server.js",
+      "methods": ["GET", "POST", "DELETE", "OPTIONS"]
     },
     {
       "src": "/(.*)",
@@ -18,5 +19,8 @@
         "Content-Type": "text/html"
       }
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
