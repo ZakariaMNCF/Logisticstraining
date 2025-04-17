@@ -6,7 +6,7 @@ const path = require('path');
 
 const app = express();
 
-// 1. Fix CORS permanently
+// Enable CORS
 app.use(cors({
   origin: [
     'https://zakariamncf.github.io',
@@ -16,24 +16,29 @@ app.use(cors({
   credentials: true
 }));
 
-// 2. Basic API endpoint that always works
-app.get('/api', (req, res) => {
-  res.json({ 
-    status: 'API is working',
-    endpoints: {
-      upload: '/api/upload',
-      files: '/api/files',
-      delete: '/api/delete/:filename'
-    }
+// File upload setup
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+});
+
+// API Endpoints
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  
+  res.json({
+    success: true,
+    filename: req.file.originalname,
+    size: req.file.size
   });
 });
 
-// 3. Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK',
-    server: 'running',
-    time: new Date().toISOString()
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
