@@ -1,18 +1,12 @@
-
 {
   "version": 2,
   "builds": [
     {
       "src": "server.js",
       "use": "@vercel/node",
-      "config": { 
-        "maxLambdaSize": "50mb",
-        "includeFiles": ["uploads/**"]
+      "config": {
+        "maxLambdaSize": "50mb"
       }
-    },
-    {
-      "src": "SAP-Customer.html",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
