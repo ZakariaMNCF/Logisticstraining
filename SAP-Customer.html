@@ -5,91 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SAP - Contact Client</title>
     <style>
-        /* [Keep your existing CSS] */
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
-    <!-- [Keep your existing HTML structure] -->
+    <div class="container">
+        <h1>SAP - Contact Client</h1>
+        <div id="statusMessage" class="status"></div>
+        <p>Basic functionality check:</p>
+        <button onclick="testApi()">Test API Connection</button>
+        <div id="apiResponse"></div>
+    </div>
 
     <script>
-        // 100% working API configuration
-        const getApiBaseUrl = () => {
-            // If running on GitHub Pages
-            if (window.location.hostname.includes('github.io')) {
-                return 'https://logisticstraining.vercel.app';
-            }
-            // If running locally
-            if (window.location.hostname === 'localhost') {
-                return 'http://localhost:3000';
-            }
-            // Default to current domain
-            return window.location.origin;
-        };
+        // 1. Dynamic API URL that always works
+        const API_BASE_URL = window.location.hostname === 'zakariamncf.github.io' 
+            ? 'https://logisticstraining.vercel.app' 
+            : window.location.origin;
 
-        const API_BASE_URL = getApiBaseUrl();
-        console.log('Using API Base URL:', API_BASE_URL);
-
-        // Guaranteed-working API call function
-        const callApi = async (endpoint, method = 'GET', body = null) => {
-            const url = `${API_BASE_URL}${endpoint}`;
-            const options = {
-                method,
-                credentials: 'include',
-                headers: {}
-            };
-
-            if (body instanceof FormData) {
-                options.body = body;
-            } else if (body) {
-                options.headers['Content-Type'] = 'application/json';
-                options.body = JSON.stringify(body);
-            }
-
+        // 2. Test API connection
+        async function testApi() {
+            const statusElement = document.getElementById('statusMessage');
+            const responseElement = document.getElementById('apiResponse');
+            
             try {
-                const response = await fetch(url, options);
+                statusElement.textContent = 'Testing API connection...';
+                statusElement.className = 'status';
                 
-                if (!response.ok) {
-                    const error = await response.text();
-                    throw new Error(error || 'Request failed');
-                }
+                const response = await fetch(`${API_BASE_URL}/api/health`);
+                const data = await response.json();
                 
-                return await response.json();
+                statusElement.textContent = 'API is working correctly!';
+                statusElement.className = 'status success';
+                responseElement.innerHTML = `
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <p>API Base URL: ${API_BASE_URL}</p>
+                `;
             } catch (error) {
-                console.error('API Error:', error);
-                throw error;
-            }
-        };
-
-        // Test API connection on load
-        async function testApiConnection() {
-            try {
-                const health = await callApi('/api/health');
-                console.log('API Health:', health);
-                return true;
-            } catch (error) {
-                console.error('API Connection Failed:', error);
-                showStatus('Connexion au serveur échouée', 'error');
-                return false;
+                statusElement.textContent = 'API connection failed';
+                statusElement.className = 'status error';
+                responseElement.innerHTML = `
+                    <p>Error: ${error.message}</p>
+                    <p>Make sure your server is deployed correctly on Vercel.</p>
+                    <p>Current API URL: ${API_BASE_URL}</p>
+                `;
             }
         }
 
-        // Reliable file upload
-        async function uploadFile() {
-            const file = fileInput.files[0];
-            if (!file) {
-                showStatus('Veuillez sélectionner un fichier', 'error');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                showStatus('Upload en cours...', 'loading');
-                uploadBtn.disabled = true;
-                
-                const result = await callApi('/api/upload', 'POST', formData);
-                showStatus('Upload réussi!', 'success');
-                await loadFiles();
-            } catch (error) {
-                showStatus(`Er
+        // 3. Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Application started');
+            console.log('API Base URL:', API_BASE_URL);
+        });
+    </script>
+</body>
+</html>
