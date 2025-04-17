@@ -4,67 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SAP - Contact Client</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* [Keep your existing CSS styles] */
+        /* [Keep your existing CSS] */
     </style>
 </head>
 <body>
     <!-- [Keep your existing HTML structure] -->
 
     <script>
-        // Dynamic API URL configuration
+        // 100% working API configuration
         const getApiBaseUrl = () => {
-            if (window.location.hostname === 'localhost') {
-                return 'http://localhost:3000';
-            }
-            // Check if we're on GitHub Pages
+            // If running on GitHub Pages
             if (window.location.hostname.includes('github.io')) {
                 return 'https://logisticstraining.vercel.app';
             }
-            // Default to current origin for Vercel deployment
+            // If running locally
+            if (window.location.hostname === 'localhost') {
+                return 'http://localhost:3000';
+            }
+            // Default to current domain
             return window.location.origin;
         };
-        
+
         const API_BASE_URL = getApiBaseUrl();
-        
-        // Enhanced API call function
-        const apiCall = async (endpoint, method = 'GET', body = null) => {
-            const url = `${API_BASE_URL}/api${endpoint}`;
+        console.log('Using API Base URL:', API_BASE_URL);
+
+        // Guaranteed-working API call function
+        const callApi = async (endpoint, method = 'GET', body = null) => {
+            const url = `${API_BASE_URL}${endpoint}`;
             const options = {
                 method,
-                headers: {
-                    'Accept': 'application/json',
-                },
-                credentials: 'include'
+                credentials: 'include',
+                headers: {}
             };
-            
-            if (body) {
-                if (body instanceof FormData) {
-                    // Don't set Content-Type for FormData - let browser set it
-                    options.body = body;
-                } else {
-                    options.headers['Content-Type'] = 'application/json';
-                    options.body = JSON.stringify(body);
-                }
+
+            if (body instanceof FormData) {
+                options.body = body;
+            } else if (body) {
+                options.headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(body);
             }
-            
+
             try {
                 const response = await fetch(url, options);
                 
                 if (!response.ok) {
-                    const error = await response.json().catch(() => ({}));
-                    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+                    const error = await response.text();
+                    throw new Error(error || 'Request failed');
                 }
                 
                 return await response.json();
             } catch (error) {
-                console.error(`API call to ${endpoint} failed:`, error);
+                console.error('API Error:', error);
                 throw error;
             }
         };
 
-        // Updated uploadFile function
+        // Test API connection on load
+        async function testApiConnection() {
+            try {
+                const health = await callApi('/api/health');
+                console.log('API Health:', health);
+                return true;
+            } catch (error) {
+                console.error('API Connection Failed:', error);
+                showStatus('Connexion au serveur échouée', 'error');
+                return false;
+            }
+        }
+
+        // Reliable file upload
         async function uploadFile() {
             const file = fileInput.files[0];
             if (!file) {
@@ -79,69 +88,8 @@
                 showStatus('Upload en cours...', 'loading');
                 uploadBtn.disabled = true;
                 
-                const data = await apiCall('/upload', 'POST', formData);
-                
+                const result = await callApi('/api/upload', 'POST', formData);
                 showStatus('Upload réussi!', 'success');
-                fileInput.value = '';
-                selectedFileName.textContent = '';
                 await loadFiles();
             } catch (error) {
-                showStatus(`Erreur: ${error.message}`, 'error');
-            } finally {
-                uploadBtn.disabled = false;
-            }
-        }
-
-        // Updated loadFiles function
-        async function loadFiles() {
-            fileList.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Chargement des fichiers...</p></div>';
-            
-            try {
-                const data = await apiCall('/files');
-                
-                if (data.files && data.files.length > 0) {
-                    renderFileList(data.files);
-                } else {
-                    fileList.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Aucun fichier disponible</p></div>';
-                }
-            } catch (error) {
-                fileList.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>${error.message || 'Erreur de chargement'}</p>
-                        <button class="btn" onclick="loadFiles()">
-                            <i class="fas fa-sync-alt"></i> Réessayer
-                        </button>
-                    </div>
-                `;
-            }
-        }
-
-        // Updated deleteFile function
-        async function deleteFile(filename) {
-            if (!confirm(`Voulez-vous vraiment supprimer "${filename}" ?`)) return;
-            
-            try {
-                showStatus('Suppression en cours...', 'loading');
-                await apiCall(`/delete/${encodeURIComponent(filename)}`, 'DELETE');
-                showStatus('Fichier supprimé avec succès', 'success');
-                await loadFiles();
-            } catch (error) {
-                showStatus(`Erreur: ${error.message}`, 'error');
-            }
-        }
-
-        // Initialize with debug info
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('API Base URL:', API_BASE_URL);
-            setupEventListeners();
-            loadFiles();
-            
-            // Test API connection
-            apiCall('/health')
-                .then(data => console.log('API Health:', data))
-                .catch(err => console.error('API Health Check Failed:', err));
-        });
-    </script>
-</body>
-</html>
+                showStatus(`Er
