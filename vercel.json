@@ -1,9 +1,18 @@
+// vercel.json - updated configuration
 {
   "version": 2,
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": { 
+        "maxLambdaSize": "50mb",
+        "includeFiles": ["uploads/**"]
+      }
+    },
+    {
+      "src": "SAP-Customer.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -19,8 +28,5 @@
         "Content-Type": "text/html"
       }
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
