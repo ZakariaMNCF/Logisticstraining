@@ -8,76 +8,57 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Configuration CORS
+// Middleware CORS
 app.use(cors({
-  origin: ['https://zakariamncf.github.io', 'https://logisticstraining-mxoz.vercel.app'],
-  methods: ['GET', 'POST', 'DELETE'],
-  allowedHeaders: ['Content-Type']
+  origin: ['https://zakariamncf.github.io', 'https://logisticstraining.vercel.app'],
+  methods: ['GET', 'POST', 'DELETE']
 }));
 
-// Middleware
-app.use(express.json());
-
-// Configuration du stockage des fichiers
+// Configuration Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = '/tmp/uploads';
-    fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
+    const dir = './uploads';
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
   }
 });
 
-const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } });
+const upload = multer({ storage });
 
-// Endpoint pour uploader un fichier
+// Routes API
 app.post('/api/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-  res.json({
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier uploadé' });
+  res.json({ 
     success: true,
     filename: req.file.filename,
     url: `/api/uploads/${req.file.filename}`
   });
 });
 
-// Endpoint pour lister les fichiers
 app.get('/api/files', (req, res) => {
-  fs.readdir('/tmp/uploads', (err, files) => {
-    if (err) {
-      return res.status(500).json({ error: 'Unable to scan files' });
-    }
-    res.json({
-      files: files.map(file => ({
-        name: file,
-        url: `/api/uploads/${file}`
-      }))
-    });
+  fs.readdir('./uploads', (err, files) => {
+    if (err) return res.status(500).json({ error: 'Erreur de lecture' });
+    res.json({ files: files.map(f => ({ name: f, url: `/api/uploads/${f}`)) });
   });
 });
 
-// Endpoint pour supprimer un fichier
 app.delete('/api/delete/:filename', (req, res) => {
-  const filePath = path.join('/tmp/uploads', req.params.filename);
-  fs.unlink(filePath, (err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to delete file' });
-    }
+  fs.unlink(`./uploads/${req.params.filename}`, (err) => {
+    if (err) return res.status(500).json({ error: 'Erreur de suppression' });
     res.json({ success: true });
   });
 });
 
-// Servir les fichiers uploadés
-app.use('/api/uploads', express.static('/tmp/uploads'));
+// Servir les fichiers statiques
+app.use('/api/uploads', express.static('uploads'));
 
-// Health check
+// Route de test
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK' });
+  res.json({ status: 'OK', server: 'actif' });
 });
 
 // Démarrer le serveur
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+app.listen(port, () => console.log(`Serveur démarré sur le port ${port}`));
