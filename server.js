@@ -8,71 +8,76 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// 1. CORS Configuration - EXACT URLs
-const allowedOrigins = [
-    'https://zakariamncf.github.io', // Your exact GitHub Pages URL
-    'https://logisticstraining-mxoz.vercel.app' // Your exact Vercel URL
-];
-
+// Configuration CORS
 app.use(cors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type'],
-    credentials: true
+  origin: ['https://zakariamncf.github.io', 'https://logisticstraining-mxoz.vercel.app'],
+  methods: ['GET', 'POST', 'DELETE'],
+  allowedHeaders: ['Content-Type']
 }));
 
-// 2. Middleware
+// Middleware
 app.use(express.json());
 
-// 3. File Upload Configuration
+// Configuration du stockage des fichiers
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = '/tmp/uploads';
-        fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+  destination: (req, file, cb) => {
+    const dir = '/tmp/uploads';
+    fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
 });
 
-const upload = multer({
-    storage,
-    limits: { fileSize: 25 * 1024 * 1024 } // 25MB
-});
+const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } });
 
-// 4. Upload Endpoint
+// Endpoint pour uploader un fichier
 app.post('/api/upload', upload.single('file'), (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-        
-        res.json({
-            success: true,
-            filename: req.file.filename,
-            url: `https://logisticstraining-mxoz.vercel.app/uploads/${req.file.filename}`
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Upload failed' });
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  res.json({
+    success: true,
+    filename: req.file.filename,
+    url: `/api/uploads/${req.file.filename}`
+  });
+});
+
+// Endpoint pour lister les fichiers
+app.get('/api/files', (req, res) => {
+  fs.readdir('/tmp/uploads', (err, files) => {
+    if (err) {
+      return res.status(500).json({ error: 'Unable to scan files' });
     }
+    res.json({
+      files: files.map(file => ({
+        name: file,
+        url: `/api/uploads/${file}`
+      }))
+    });
+  });
 });
 
-// 5. Serve Uploaded Files
-app.use('/uploads', express.static('/tmp/uploads'));
+// Endpoint pour supprimer un fichier
+app.delete('/api/delete/:filename', (req, res) => {
+  const filePath = path.join('/tmp/uploads', req.params.filename);
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to delete file' });
+    }
+    res.json({ success: true });
+  });
+});
 
-// 6. Health Check
+// Servir les fichiers uploadés
+app.use('/api/uploads', express.static('/tmp/uploads'));
+
+// Health check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', server: 'running' });
+  res.json({ status: 'OK' });
 });
 
-// 7. Error Handling
-app.use((err, req, res, next) => {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-});
-
+// Démarrer le serveur
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-    console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
+  console.log(`Server running on port ${port}`);
 });
