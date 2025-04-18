@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* [Keep all your existing CSS styles exactly as they are] */
         :root {
             --primary-color: #4361ee;
             --primary-hover: #3a56d4;
@@ -38,7 +37,323 @@
             padding: 2rem;
         }
         
-        /* [All other CSS rules remain unchanged] */
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .upload-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .upload-container:hover {
+            transform: translateY(-5px);
+        }
+        
+        .upload-container h2 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 1.5rem;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .file-input-wrapper:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+        
+        .file-input-wrapper.drag-over {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+        
+        .file-input-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .file-input-button i {
+            font-size: 3rem;
+            color: var(--primary-color);
+        }
+        
+        .file-input-button .browse-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        
+        .file-input-button .hint-text {
+            font-size: 0.9rem;
+            color: #999;
+        }
+        
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .selected-file {
+            background-color: var(--light-gray);
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .selected-file i {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+        
+        .file-info {
+            flex-grow: 1;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+        }
+        
+        .file-meta {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-upload {
+            background-color: var(--primary-color);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-upload:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+        
+        .btn-upload:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status.success {
+            background-color: rgba(75, 181, 67, 0.2);
+            color: var(--success-color);
+            display: block;
+        }
+        
+        .status.error {
+            background-color: rgba(255, 51, 51, 0.2);
+            color: var(--error-color);
+            display: block;
+        }
+        
+        .progress-container {
+            width: 100%;
+            background-color: var(--light-gray);
+            border-radius: 5px;
+            margin: 1rem 0;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background-color: var(--primary-color);
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        /* Uploaded Files Section */
+        .files-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .files-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .files-header h2 {
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .files-list {
+            list-style: none;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+        
+        .file-item:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .file-icon {
+            font-size: 1.8rem;
+            color: var(--primary-color);
+            margin-right: 1rem;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .file-details {
+            flex-grow: 1;
+        }
+        
+        .file-title {
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+        }
+        
+        .file-info {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: var(--light-gray);
+            color: var(--primary-color);
+        }
+        
+        .download-btn:hover {
+            color: var(--success-color);
+        }
+        
+        .delete-btn:hover {
+            color: var(--error-color);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--light-gray);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .file-actions {
+                align-self: flex-end;
+            }
+        }
     </style>
 </head>
 <body>
@@ -98,11 +413,11 @@
     </div>
 
     <script>
-        // API Configuration
-        const API_BASE_URL = 'http://localhost:3000'; // Change this to your deployed backend URL
+        // API Configuration - UPDATE THIS TO YOUR BACKEND URL
+        const API_BASE_URL = 'http://localhost:3000';
         
         document.addEventListener('DOMContentLoaded', function() {
-            // [Keep all your existing DOM element references]
+            // DOM Elements
             const fileInput = document.getElementById('fileInput');
             const uploadBtn = document.getElementById('uploadBtn');
             const selectedFile = document.getElementById('selectedFile');
@@ -119,9 +434,85 @@
             // Initialize by loading files
             fetchFiles();
             
-            // [Keep all your existing event listeners for file selection, drag & drop, etc.]
+            // File selection handler
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    updateFileInfo(this.files[0]);
+                }
+            });
             
-            // Upload file to backend
+            // Clear file selection
+            clearBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                resetFileInput();
+            });
+            
+            // Upload button handler - FIXED THIS PART
+            uploadBtn.addEventListener('click', async function() {
+                if (fileInput.files.length > 0) {
+                    await uploadFile(fileInput.files[0]);
+                }
+            });
+            
+            // Drag and drop functionality
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight() {
+                dropZone.classList.add('drag-over');
+            }
+            
+            function unhighlight() {
+                dropZone.classList.remove('drag-over');
+            }
+            
+            dropZone.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    updateFileInfo(files[0]);
+                }
+            }
+            
+            // Update file info display
+            function updateFileInfo(file) {
+                const icon = getFileIcon(file.name);
+                
+                selectedFile.style.display = 'flex';
+                fileName.innerHTML = `<i class="fas fa-${icon}"></i> ${file.name}`;
+                fileMeta.textContent = `${formatFileSize(file.size)} • ${file.type || 'Unknown type'}`;
+                uploadBtn.disabled = false;
+            }
+            
+            // Reset file input
+            function resetFileInput() {
+                fileInput.value = '';
+                selectedFile.style.display = 'none';
+                uploadBtn.disabled = true;
+                statusMessage.style.display = 'none';
+                statusMessage.className = 'status';
+                progressBar.style.width = '0%';
+            }
+            
+            // Upload file to backend - FIXED THIS FUNCTION
             async function uploadFile(file) {
                 progressContainer.style.display = 'block';
                 statusMessage.style.display = 'none';
@@ -146,7 +537,7 @@
                     
                     const result = await response.json();
                     showStatus(`${result.filename} uploaded successfully!`, 'success');
-                    fetchFiles(); // Refresh file list
+                    await fetchFiles(); // Refresh file list
                 } catch (error) {
                     console.error('Upload error:', error);
                     showStatus(error.message || 'File upload failed', 'error');
@@ -234,4 +625,93 @@
                 });
             }
             
-            // Handle
+            // Handle file download
+            async function handleDownload(e) {
+                const fileId = e.currentTarget.getAttribute('data-id');
+                const fileItem = e.currentTarget.closest('.file-item');
+                const fileName = fileItem.querySelector('.file-title').textContent;
+                
+                try {
+                    showStatus(`Preparing ${fileName} for download...`, 'success');
+                    window.open(`${API_BASE_URL}/api/files/${fileId}`, '_blank');
+                } catch (error) {
+                    console.error('Download error:', error);
+                    showStatus('Failed to download file', 'error');
+                }
+            }
+            
+            // Handle file deletion
+            async function handleDelete(e) {
+                const fileId = e.currentTarget.getAttribute('data-id');
+                const fileItem = e.currentTarget.closest('.file-item');
+                const fileName = fileItem.querySelector('.file-title').textContent;
+                
+                if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) throw new Error('Delete failed');
+                    
+                    showStatus(`"${fileName}" has been deleted`, 'success');
+                    await fetchFiles(); // Refresh the list
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    showStatus('Failed to delete file', 'error');
+                }
+            }
+            
+            // Helper function to show status messages
+            function showStatus(message, type) {
+                statusMessage.textContent = message;
+                statusMessage.className = `status ${type}`;
+                statusMessage.style.display = 'block';
+                
+                // Hide after 5 seconds
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 5000);
+            }
+            
+            // Helper function to get file icon based on extension
+            function getFileIcon(filename) {
+                const extension = filename.split('.').pop().toLowerCase();
+                const icons = {
+                    pdf: 'file-pdf',
+                    doc: 'file-word',
+                    docx: 'file-word',
+                    xls: 'file-excel',
+                    xlsx: 'file-excel',
+                    ppt: 'file-powerpoint',
+                    pptx: 'file-powerpoint',
+                    jpg: 'file-image',
+                    jpeg: 'file-image',
+                    png: 'file-image',
+                    gif: 'file-image',
+                    txt: 'file-alt',
+                    csv: 'file-csv',
+                    zip: 'file-archive',
+                    rar: 'file-archive',
+                    mp3: 'file-audio',
+                    wav: 'file-audio',
+                    mp4: 'file-video',
+                    mov: 'file-video'
+                };
+                
+                return icons[extension] || 'file';
+            }
+            
+            // Helper function to format file size
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        });
+    </script>
+</body>
+</html>
