@@ -231,6 +231,110 @@
             transition: width 0.3s ease;
         }
         
+        /* Uploaded Files Section */
+        .files-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .files-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .files-header h2 {
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .files-list {
+            list-style: none;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+        
+        .file-item:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .file-icon {
+            font-size: 1.8rem;
+            color: var(--primary-color);
+            margin-right: 1rem;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .file-details {
+            flex-grow: 1;
+        }
+        
+        .file-title {
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+        }
+        
+        .file-info {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: var(--light-gray);
+            color: var(--primary-color);
+        }
+        
+        .download-btn:hover {
+            color: var(--success-color);
+        }
+        
+        .delete-btn:hover {
+            color: var(--error-color);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--light-gray);
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -238,6 +342,16 @@
             
             .header h1 {
                 font-size: 2rem;
+            }
+            
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .file-actions {
+                align-self: flex-end;
             }
         }
     </style>
@@ -282,6 +396,22 @@
             
             <div id="statusMessage" class="status"></div>
         </div>
+        
+        <!-- Uploaded Files Section -->
+        <div class="files-container">
+            <div class="files-header">
+                <h2><i class="fas fa-file-alt"></i> Uploaded Files</h2>
+                <span id="fileCount">0 files</span>
+            </div>
+            
+            <ul class="files-list" id="filesList">
+                <!-- Files will be added here dynamically -->
+                <div class="empty-state">
+                    <i class="fas fa-folder-open"></i>
+                    <p>No files uploaded yet</p>
+                </div>
+            </ul>
+        </div>
     </div>
 
     <script>
@@ -296,6 +426,14 @@
             const dropZone = document.getElementById('dropZone');
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
+            const filesList = document.getElementById('filesList');
+            const fileCount = document.getElementById('fileCount');
+            
+            // Store uploaded files
+            let uploadedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
+            
+            // Initialize the files list
+            renderFilesList();
             
             // File selection handler
             fileInput.addEventListener('change', function() {
@@ -387,6 +525,20 @@
                         progress = 100;
                         clearInterval(interval);
                         
+                        // Add the file to uploaded files
+                        const fileData = {
+                            id: Date.now(),
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            date: new Date().toLocaleString(),
+                            icon: getFileIcon(file.name)
+                        };
+                        
+                        uploadedFiles.unshift(fileData); // Add to beginning of array
+                        saveFilesToLocalStorage();
+                        renderFilesList();
+                        
                         // Simulate upload completion
                         setTimeout(() => {
                             showStatus('File uploaded successfully!', 'success');
@@ -398,11 +550,99 @@
                 }, 200);
             }
             
+            // Render the files list
+            function renderFilesList() {
+                if (uploadedFiles.length === 0) {
+                    filesList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open"></i>
+                            <p>No files uploaded yet</p>
+                        </div>
+                    `;
+                    fileCount.textContent = '0 files';
+                    return;
+                }
+                
+                filesList.innerHTML = '';
+                fileCount.textContent = `${uploadedFiles.length} ${uploadedFiles.length === 1 ? 'file' : 'files'}`;
+                
+                uploadedFiles.forEach(file => {
+                    const fileItem = document.createElement('li');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <div class="file-icon">
+                            <i class="fas fa-${file.icon}"></i>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-title">${file.name}</div>
+                            <div class="file-info">
+                                <span>${formatFileSize(file.size)}</span>
+                                <span>${file.type}</span>
+                                <span>Uploaded: ${file.date}</span>
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="action-btn download-btn" data-id="${file.id}" title="Download">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button class="action-btn delete-btn" data-id="${file.id}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    filesList.appendChild(fileItem);
+                });
+                
+                // Add event listeners to action buttons
+                document.querySelectorAll('.download-btn').forEach(btn => {
+                    btn.addEventListener('click', handleDownload);
+                });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', handleDelete);
+                });
+            }
+            
+            // Handle file download
+            function handleDownload(e) {
+                const fileId = parseInt(e.currentTarget.getAttribute('data-id'));
+                const file = uploadedFiles.find(f => f.id === fileId);
+                
+                if (file) {
+                    // In a real app, this would download the actual file
+                    showStatus(`Downloading "${file.name}"...`, 'success');
+                    console.log(`Downloading file: ${file.name}`);
+                }
+            }
+            
+            // Handle file deletion
+            function handleDelete(e) {
+                const fileId = parseInt(e.currentTarget.getAttribute('data-id'));
+                const fileName = uploadedFiles.find(f => f.id === fileId)?.name;
+                
+                if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
+                    uploadedFiles = uploadedFiles.filter(f => f.id !== fileId);
+                    saveFilesToLocalStorage();
+                    renderFilesList();
+                    showStatus(`"${fileName}" has been deleted`, 'success');
+                }
+            }
+            
+            // Save files to localStorage
+            function saveFilesToLocalStorage() {
+                localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
+            }
+            
             // Show status message
             function showStatus(message, type) {
                 statusMessage.textContent = message;
                 statusMessage.className = `status ${type}`;
                 statusMessage.style.display = 'block';
+                
+                // Hide after 5 seconds
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 5000);
             }
             
             // Helper function to get file icon based on extension
