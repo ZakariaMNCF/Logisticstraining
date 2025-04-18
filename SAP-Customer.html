@@ -25,8 +25,20 @@
             box-sizing: border-box;
         }
         
-        /* [All other CSS rules remain unchanged] */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
         
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* [All other CSS rules remain unchanged] */
     </style>
 </head>
 <body>
@@ -70,7 +82,6 @@
             <div id="statusMessage" class="status"></div>
         </div>
         
-        <!-- Uploaded Files Section -->
         <div class="files-container">
             <div class="files-header">
                 <h2><i class="fas fa-file-alt"></i> Uploaded Files</h2>
@@ -78,7 +89,6 @@
             </div>
             
             <ul class="files-list" id="filesList">
-                <!-- Files will be added here dynamically -->
                 <div class="empty-state">
                     <i class="fas fa-folder-open"></i>
                     <p>No files uploaded yet</p>
@@ -88,10 +98,11 @@
     </div>
 
     <script>
-        // API Base URL - Update this to match your backend URL
-        const API_BASE_URL = 'https://your-api-url.com/api';
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:3000'; // Change this to your deployed backend URL
         
         document.addEventListener('DOMContentLoaded', function() {
+            // [Keep all your existing DOM element references]
             const fileInput = document.getElementById('fileInput');
             const uploadBtn = document.getElementById('uploadBtn');
             const selectedFile = document.getElementById('selectedFile');
@@ -105,142 +116,72 @@
             const filesList = document.getElementById('filesList');
             const fileCount = document.getElementById('fileCount');
             
-            // Load files when page loads
+            // Initialize by loading files
             fetchFiles();
             
-            // File selection handler
-            fileInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    updateFileInfo(this.files[0]);
-                }
-            });
+            // [Keep all your existing event listeners for file selection, drag & drop, etc.]
             
-            // Clear file selection
-            clearBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                resetFileInput();
-            });
-            
-            // Upload button handler
-            uploadBtn.addEventListener('click', function() {
-                if (fileInput.files.length > 0) {
-                    uploadFile(fileInput.files[0]);
-                }
-            });
-            
-            // Drag and drop functionality
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, preventDefaults, false);
-            });
-            
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropZone.addEventListener(eventName, highlight, false);
-            });
-            
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, unhighlight, false);
-            });
-            
-            function highlight() {
-                dropZone.classList.add('drag-over');
-            }
-            
-            function unhighlight() {
-                dropZone.classList.remove('drag-over');
-            }
-            
-            dropZone.addEventListener('drop', handleDrop, false);
-            
-            function handleDrop(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                
-                if (files.length > 0) {
-                    fileInput.files = files;
-                    updateFileInfo(files[0]);
-                }
-            }
-            
-            // Update file info display
-            function updateFileInfo(file) {
-                const icon = getFileIcon(file.name);
-                
-                selectedFile.style.display = 'flex';
-                fileName.innerHTML = `<i class="fas fa-${icon}"></i> ${file.name}`;
-                fileMeta.textContent = `${formatFileSize(file.size)} • ${file.type}`;
-                uploadBtn.disabled = false;
-            }
-            
-            // Reset file input
-            function resetFileInput() {
-                fileInput.value = '';
-                selectedFile.style.display = 'none';
-                uploadBtn.disabled = true;
+            // Upload file to backend
+            async function uploadFile(file) {
+                progressContainer.style.display = 'block';
                 statusMessage.style.display = 'none';
-                statusMessage.className = 'status';
+                uploadBtn.disabled = true;
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                    // Simulate progress for better UX
+                    simulateUploadProgress();
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Upload failed');
+                    }
+                    
+                    const result = await response.json();
+                    showStatus(`${result.filename} uploaded successfully!`, 'success');
+                    fetchFiles(); // Refresh file list
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    showStatus(error.message || 'File upload failed', 'error');
+                } finally {
+                    progressContainer.style.display = 'none';
+                    uploadBtn.disabled = false;
+                }
             }
             
-            // Fetch files from MongoDB via API
+            function simulateUploadProgress() {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 15;
+                    if (progress >= 90) {
+                        clearInterval(interval);
+                    }
+                    progressBar.style.width = `${progress}%`;
+                }, 200);
+            }
+            
+            // Fetch files from backend
             async function fetchFiles() {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/files`);
+                    const response = await fetch(`${API_BASE_URL}/api/files`);
                     if (!response.ok) throw new Error('Failed to fetch files');
                     
                     const files = await response.json();
                     renderFilesList(files);
                 } catch (error) {
                     console.error('Error fetching files:', error);
-                    showStatus('Failed to load files. Please try again.', 'error');
+                    showStatus('Failed to load files', 'error');
                 }
             }
             
-            // Upload file to MongoDB via API
-            async function uploadFile(file) {
-                progressContainer.style.display = 'block';
-                statusMessage.style.display = 'none';
-                
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                try {
-                    const response = await fetch(`${API_BASE_URL}/upload`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) throw new Error('Upload failed');
-                    
-                    const result = await response.json();
-                    
-                    // Simulate progress for UI
-                    let progress = 0;
-                    const interval = setInterval(() => {
-                        progress += 10;
-                        if (progress >= 100) {
-                            progress = 100;
-                            clearInterval(interval);
-                            progressContainer.style.display = 'none';
-                            
-                            showStatus('File uploaded successfully!', 'success');
-                            resetFileInput();
-                            fetchFiles(); // Refresh the files list
-                        }
-                        progressBar.style.width = `${progress}%`;
-                    }, 100);
-                    
-                } catch (error) {
-                    console.error('Upload error:', error);
-                    progressContainer.style.display = 'none';
-                    showStatus('File upload failed. Please try again.', 'error');
-                }
-            }
-            
-            // Render the files list from MongoDB data
+            // Render files list
             function renderFilesList(files = []) {
                 if (!files || files.length === 0) {
                     filesList.innerHTML = `
@@ -283,7 +224,7 @@
                     filesList.appendChild(fileItem);
                 });
                 
-                // Add event listeners to action buttons
+                // Add event listeners to new buttons
                 document.querySelectorAll('.download-btn').forEach(btn => {
                     btn.addEventListener('click', handleDownload);
                 });
@@ -293,96 +234,4 @@
                 });
             }
             
-            // Handle file download from MongoDB
-            async function handleDownload(e) {
-                const fileId = e.currentTarget.getAttribute('data-id');
-                
-                try {
-                    // This will trigger the browser's download behavior
-                    window.open(`${API_BASE_URL}/files/${fileId}`, '_blank');
-                    showStatus('Download started...', 'success');
-                } catch (error) {
-                    console.error('Download error:', error);
-                    showStatus('Download failed. Please try again.', 'error');
-                }
-            }
-            
-            // Handle file deletion from MongoDB
-            async function handleDelete(e) {
-                const fileId = e.currentTarget.getAttribute('data-id');
-                const fileItem = e.currentTarget.closest('.file-item');
-                const fileName = fileItem.querySelector('.file-title').textContent;
-                
-                if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/files/${fileId}`, {
-                            method: 'DELETE'
-                        });
-                        
-                        if (!response.ok) throw new Error('Delete failed');
-                        
-                        showStatus(`"${fileName}" has been deleted`, 'success');
-                        fetchFiles(); // Refresh the files list
-                    } catch (error) {
-                        console.error('Delete error:', error);
-                        showStatus('Failed to delete file. Please try again.', 'error');
-                    }
-                }
-            }
-            
-            // Show status message
-            function showStatus(message, type) {
-                statusMessage.textContent = message;
-                statusMessage.className = `status ${type}`;
-                statusMessage.style.display = 'block';
-                
-                // Hide after 5 seconds
-                setTimeout(() => {
-                    statusMessage.style.display = 'none';
-                }, 5000);
-            }
-            
-            // Helper function to get file icon based on extension
-            function getFileIcon(filename) {
-                const extension = filename.split('.').pop().toLowerCase();
-                const icons = {
-                    pdf: 'file-pdf',
-                    doc: 'file-word',
-                    docx: 'file-word',
-                    xls: 'file-excel',
-                    xlsx: 'file-excel',
-                    ppt: 'file-powerpoint',
-                    pptx: 'file-powerpoint',
-                    jpg: 'file-image',
-                    jpeg: 'file-image',
-                    png: 'file-image',
-                    gif: 'file-image',
-                    txt: 'file-alt',
-                    csv: 'file-csv',
-                    zip: 'file-archive',
-                    rar: 'file-archive',
-                    mp3: 'file-audio',
-                    wav: 'file-audio',
-                    mp4: 'file-video',
-                    mov: 'file-video',
-                    exe: 'file-code',
-                    js: 'file-code',
-                    html: 'file-code',
-                    css: 'file-code'
-                };
-                
-                return icons[extension] || 'file';
-            }
-            
-            // Helper function to format file size
-            function formatFileSize(bytes) {
-                if (!bytes) return '0 Bytes';
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-            }
-        });
-    </script>
-</body>
-</html>
+            // Handle
