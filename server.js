@@ -2,8 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
-const path = require('path');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const path = require('path');
 
 const app = express();
 
@@ -34,7 +34,8 @@ connectDB();
 app.use(cors({
   origin: [
     'https://zakariamncf.github.io',
-    'https://logisticstraining.vercel.app'
+    'https://logisticstraining.vercel.app',
+    'http://localhost:3000' // For local development
   ],
   methods: ['GET', 'POST', 'DELETE'],
   credentials: true
@@ -46,7 +47,17 @@ app.use(express.json());
 // File upload setup
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 
+                         'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                         'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, XLS, XLSX, JPG, PNG are allowed.'), false);
+    }
+  }
 });
 
 // API Endpoints
@@ -56,13 +67,12 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   }
 
   try {
-    // Store file metadata in MongoDB
     const fileMetadata = {
       filename: req.file.originalname,
       size: req.file.size,
       mimetype: req.file.mimetype,
       uploadDate: new Date(),
-      buffer: req.file.buffer, // Storing file buffer directly in MongoDB
+      buffer: req.file.buffer,
       isPublic: true
     };
 
@@ -80,7 +90,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-// Get all files
 app.get('/api/files', async (req, res) => {
   try {
     const files = await db.collection('files')
@@ -96,7 +105,6 @@ app.get('/api/files', async (req, res) => {
   }
 });
 
-// Download file
 app.get('/api/files/:id', async (req, res) => {
   try {
     const file = await db.collection('files').findOne({ 
@@ -120,7 +128,6 @@ app.get('/api/files/:id', async (req, res) => {
   }
 });
 
-// Delete file
 app.delete('/api/files/:id', async (req, res) => {
   try {
     const result = await db.collection('files').deleteOne({ 
@@ -138,7 +145,6 @@ app.delete('/api/files/:id', async (req, res) => {
   }
 });
 
-// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK',
@@ -149,8 +155,18 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  if (err instanceof multer.MulterError) {
+    res.status(400).json({ error: err.message });
+  } else if (err) {
+    console.error(err.stack);
+    res.status(500).json({ error: err.message || 'Something went wrong!' });
+  }
 });
 
-module.exports = app;
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+process.on('SIGINT', async () => {
+  await client.close();
+  process.exit();
+});
