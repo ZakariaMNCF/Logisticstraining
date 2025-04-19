@@ -16,6 +16,7 @@
             --border-color: #dee2e6;
             --success-color: #4bb543;
             --error-color: #ff3333;
+            --warning-color: #ffcc00;
         }
         
         * {
@@ -157,6 +158,7 @@
         .file-name {
             font-weight: 500;
             margin-bottom: 0.3rem;
+            word-break: break-all;
         }
         
         .file-meta {
@@ -212,6 +214,12 @@
         .status.error {
             background-color: rgba(255, 51, 51, 0.2);
             color: var(--error-color);
+            display: block;
+        }
+        
+        .status.warning {
+            background-color: rgba(255, 204, 0, 0.2);
+            color: var(--warning-color);
             display: block;
         }
         
@@ -280,11 +288,15 @@
         
         .file-details {
             flex-grow: 1;
+            overflow: hidden;
         }
         
         .file-title {
             font-weight: 500;
             margin-bottom: 0.3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .file-info {
@@ -292,6 +304,11 @@
             gap: 1rem;
             font-size: 0.85rem;
             color: #666;
+            flex-wrap: wrap;
+        }
+        
+        .file-info span {
+            white-space: nowrap;
         }
         
         .file-actions {
@@ -335,6 +352,46 @@
             color: var(--light-gray);
         }
         
+        /* Debug console */
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 10px;
+            font-family: monospace;
+            z-index: 1000;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        #debug-console pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        #debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 1001;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -353,10 +410,28 @@
             .file-actions {
                 align-self: flex-end;
             }
+            
+            .file-info {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Debug Console -->
+    <div id="debug-console">
+        <button onclick="document.getElementById('debug-console').style.display='none'" 
+                style="float: right; background: none; border: none; color: white; cursor: pointer">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 style="color: white; margin-bottom: 10px;">Debug Console</h3>
+        <pre id="debug-output"></pre>
+    </div>
+    <button id="debug-toggle" onclick="toggleDebugConsole()">
+        <i class="fas fa-bug"></i>
+    </button>
+
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-file-upload"></i> SAP File Upload</h1>
@@ -397,7 +472,6 @@
             <div id="statusMessage" class="status"></div>
         </div>
         
-        <!-- Uploaded Files Section -->
         <div class="files-container">
             <div class="files-header">
                 <h2><i class="fas fa-file-alt"></i> Uploaded Files</h2>
@@ -405,7 +479,6 @@
             </div>
             
             <ul class="files-list" id="filesList">
-                <!-- Files will be added here dynamically -->
                 <div class="empty-state">
                     <i class="fas fa-folder-open"></i>
                     <p>No files uploaded yet</p>
@@ -415,7 +488,26 @@
     </div>
 
     <script>
+        // Debug console functions
+        function debugLog(message) {
+            const debugOutput = document.getElementById('debug-output');
+            if (debugOutput) {
+                debugOutput.textContent += message + '\n';
+                debugOutput.scrollTop = debugOutput.scrollHeight;
+            }
+            console.log(message);
+        }
+        
+        function toggleDebugConsole() {
+            const console = document.getElementById('debug-console');
+            console.style.display = console.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Dynamic API base URL based on current host
+        const API_BASE_URL = window.location.origin;
+        
         document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements (keep your existing selections)
             const fileInput = document.getElementById('fileInput');
             const uploadBtn = document.getElementById('uploadBtn');
             const selectedFile = document.getElementById('selectedFile');
@@ -429,16 +521,13 @@
             const filesList = document.getElementById('filesList');
             const fileCount = document.getElementById('fileCount');
             
-            // Store uploaded files
-            let uploadedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
-            
-            // Initialize the files list
-            renderFilesList();
+            // Initialize by loading files
+            loadFiles();
             
             // File selection handler
             fileInput.addEventListener('change', function() {
                 if (this.files.length > 0) {
-                    updateFileInfo(this.files[0]);
+                    showSelectedFile(this.files[0]);
                 }
             });
             
@@ -449,11 +538,7 @@
             });
             
             // Upload button handler
-            uploadBtn.addEventListener('click', function() {
-                if (fileInput.files.length > 0) {
-                    uploadFile(fileInput.files[0]);
-                }
-            });
+            uploadBtn.addEventListener('click', uploadSelectedFile);
             
             // Drag and drop functionality
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -474,16 +559,19 @@
             });
             
             function highlight() {
+                debugLog('Drag over detected');
                 dropZone.classList.add('drag-over');
             }
             
             function unhighlight() {
+                debugLog('Drag leave detected');
                 dropZone.classList.remove('drag-over');
             }
             
             dropZone.addEventListener('drop', handleDrop, false);
             
             function handleDrop(e) {
+                debugLog('File dropped');
                 const dt = e.dataTransfer;
                 const files = dt.files;
                 
@@ -493,13 +581,12 @@
                 }
             }
             
-            // Update file info display
-            function updateFileInfo(file) {
+            // Show selected file info
+            function showSelectedFile(file) {
                 const icon = getFileIcon(file.name);
-                
                 selectedFile.style.display = 'flex';
                 fileName.innerHTML = `<i class="fas fa-${icon}"></i> ${file.name}`;
-                fileMeta.textContent = `${formatFileSize(file.size)} • ${file.type}`;
+                fileMeta.textContent = `${formatSize(file.size)} • ${file.type || 'Unknown type'}`;
                 uploadBtn.disabled = false;
             }
             
@@ -508,84 +595,121 @@
                 fileInput.value = '';
                 selectedFile.style.display = 'none';
                 uploadBtn.disabled = true;
-                statusMessage.style.display = 'none';
-                statusMessage.className = 'status';
+                hideStatus();
+                progressBar.style.width = '0%';
             }
             
-            // Upload file function (simulated)
-            function uploadFile(file) {
-                progressContainer.style.display = 'block';
-                statusMessage.style.display = 'none';
+            // Upload the selected file
+            async function uploadSelectedFile() {
+                if (!fileInput.files.length) return;
                 
-                // Simulate upload progress
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += Math.random() * 10;
-                    if (progress >= 100) {
-                        progress = 100;
-                        clearInterval(interval);
-                        
-                        // Add the file to uploaded files
-                        const fileData = {
-                            id: Date.now(),
-                            name: file.name,
-                            size: file.size,
-                            type: file.type,
-                            date: new Date().toLocaleString(),
-                            icon: getFileIcon(file.name)
-                        };
-                        
-                        uploadedFiles.unshift(fileData); // Add to beginning of array
-                        saveFilesToLocalStorage();
-                        renderFilesList();
-                        
-                        // Simulate upload completion
-                        setTimeout(() => {
-                            showStatus('File uploaded successfully!', 'success');
-                            progressContainer.style.display = 'none';
-                            resetFileInput();
-                        }, 500);
+                const file = fileInput.files[0];
+                showProgress();
+                showStatus('Uploading file...', 'info');
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    // Update progress bar
+                    const interval = setInterval(() => {
+                        const width = parseInt(progressBar.style.width) || 0;
+                        progressBar.style.width = `${Math.min(width + 10, 90)}%`;
+                    }, 300);
+                    
+                    debugLog(`Sending file to server: ${file.name}`);
+                    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include'
+                    });
+                    
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    
+                    debugLog(`Server response status: ${response.status}`);
+                    const result = await response.json();
+                    debugLog('Server response:', result);
+                    
+                    if (!response.ok) {
+                        throw new Error(result.error || result.details || 'Upload failed');
                     }
-                    progressBar.style.width = `${progress}%`;
-                }, 200);
+                    
+                    showStatus(`${result.filename} uploaded successfully!`, 'success');
+                    loadFiles(); // Refresh the list
+                    
+                } catch (error) {
+                    showStatus(error.message || 'Upload failed', 'error');
+                    console.error('Upload error:', error);
+                } finally {
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        progressBar.style.width = '0%';
+                    }, 1000);
+                }
             }
             
-            // Render the files list
-            function renderFilesList() {
-                if (uploadedFiles.length === 0) {
+            // Load files from server
+            async function loadFiles() {
+                try {
+                    debugLog('Fetching files from server...');
+                    const response = await fetch(`${API_BASE_URL}/api/files`, {
+                        credentials: 'include'
+                    });
+                    
+                    debugLog(`Files response status: ${response.status}`);
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to fetch files');
+                    }
+                    
+                    const files = await response.json();
+                    debugLog(`Received ${files.length} files from server`);
+                    displayFiles(files);
+                    
+                } catch (error) {
+                    showStatus(error.message || 'Failed to load files', 'error');
+                    console.error('Load files error:', error);
+                    displayFiles([]); // Show empty state
+                }
+            }
+            
+            // Display files in the list
+            function displayFiles(files) {
+                filesList.innerHTML = '';
+                fileCount.textContent = `${files.length} ${files.length === 1 ? 'file' : 'files'}`;
+                
+                if (files.length === 0) {
                     filesList.innerHTML = `
                         <div class="empty-state">
                             <i class="fas fa-folder-open"></i>
                             <p>No files uploaded yet</p>
                         </div>
                     `;
-                    fileCount.textContent = '0 files';
                     return;
                 }
                 
-                filesList.innerHTML = '';
-                fileCount.textContent = `${uploadedFiles.length} ${uploadedFiles.length === 1 ? 'file' : 'files'}`;
-                
-                uploadedFiles.forEach(file => {
+                files.forEach(file => {
                     const fileItem = document.createElement('li');
                     fileItem.className = 'file-item';
                     fileItem.innerHTML = `
                         <div class="file-icon">
-                            <i class="fas fa-${file.icon}"></i>
+                            <i class="fas fa-${getFileIcon(file.filename)}"></i>
                         </div>
                         <div class="file-details">
-                            <div class="file-title">${file.name}</div>
+                            <div class="file-title">${file.filename}</div>
                             <div class="file-info">
-                                <span>${formatFileSize(file.size)}</span>
-                                <span>${file.type}</span>
-                                <span>Uploaded: ${file.date}</span>
+                                <span>${formatSize(file.size)}</span>
+                                <span>${file.mimetype}</span>
+                                <span>Uploaded: ${new Date(file.uploadDate).toLocaleString()}</span>
                             </div>
                         </div>
                         <div class="file-actions">
-                            <button class="action-btn download-btn" data-id="${file.id}" title="Download">
+                            <button class="action-btn download-btn" data-id="${file._id}">
                                 <i class="fas fa-download"></i>
                             </button>
-                            <button class="action-btn delete-btn" data-id="${file.id}" title="Delete">
+                            <button class="action-btn delete-btn" data-id="${file._id}">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -593,98 +717,73 @@
                     filesList.appendChild(fileItem);
                 });
                 
-                // Add event listeners to action buttons
+                // Add event listeners
                 document.querySelectorAll('.download-btn').forEach(btn => {
-                    btn.addEventListener('click', handleDownload);
+                    btn.addEventListener('click', (e) => {
+                        const fileId = e.currentTarget.getAttribute('data-id');
+                        window.open(`${API_BASE_URL}/api/files/${fileId}`, '_blank');
+                    });
                 });
                 
                 document.querySelectorAll('.delete-btn').forEach(btn => {
-                    btn.addEventListener('click', handleDelete);
+                    btn.addEventListener('click', async (e) => {
+                        const fileId = e.currentTarget.getAttribute('data-id');
+                        if (confirm('Are you sure you want to delete this file?')) {
+                            try {
+                                await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
+                                    method: 'DELETE',
+                                    credentials: 'include'
+                                });
+                                loadFiles(); // Refresh the list
+                                showStatus('File deleted', 'success');
+                            } catch (error) {
+                                showStatus('Failed to delete file', 'error');
+                            }
+                        }
+                    });
                 });
             }
             
-            // Handle file download
-            function handleDownload(e) {
-                const fileId = parseInt(e.currentTarget.getAttribute('data-id'));
-                const file = uploadedFiles.find(f => f.id === fileId);
-                
-                if (file) {
-                    // In a real app, this would download the actual file
-                    showStatus(`Downloading "${file.name}"...`, 'success');
-                    console.log(`Downloading file: ${file.name}`);
-                }
+            // Helper functions
+            function showProgress() {
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
             }
             
-            // Handle file deletion
-            function handleDelete(e) {
-                const fileId = parseInt(e.currentTarget.getAttribute('data-id'));
-                const fileName = uploadedFiles.find(f => f.id === fileId)?.name;
-                
-                if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
-                    uploadedFiles = uploadedFiles.filter(f => f.id !== fileId);
-                    saveFilesToLocalStorage();
-                    renderFilesList();
-                    showStatus(`"${fileName}" has been deleted`, 'success');
-                }
-            }
-            
-            // Save files to localStorage
-            function saveFilesToLocalStorage() {
-                localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
-            }
-            
-            // Show status message
             function showStatus(message, type) {
                 statusMessage.textContent = message;
                 statusMessage.className = `status ${type}`;
                 statusMessage.style.display = 'block';
-                
-                // Hide after 5 seconds
-                setTimeout(() => {
-                    statusMessage.style.display = 'none';
-                }, 5000);
+                setTimeout(hideStatus, 5000);
             }
             
-            // Helper function to get file icon based on extension
+            function hideStatus() {
+                statusMessage.style.display = 'none';
+            }
+            
             function getFileIcon(filename) {
-                const extension = filename.split('.').pop().toLowerCase();
+                const ext = filename.split('.').pop().toLowerCase();
                 const icons = {
                     pdf: 'file-pdf',
-                    doc: 'file-word',
-                    docx: 'file-word',
-                    xls: 'file-excel',
-                    xlsx: 'file-excel',
-                    ppt: 'file-powerpoint',
-                    pptx: 'file-powerpoint',
-                    jpg: 'file-image',
-                    jpeg: 'file-image',
-                    png: 'file-image',
-                    gif: 'file-image',
-                    txt: 'file-alt',
-                    csv: 'file-csv',
-                    zip: 'file-archive',
-                    rar: 'file-archive',
-                    mp3: 'file-audio',
-                    wav: 'file-audio',
-                    mp4: 'file-video',
-                    mov: 'file-video',
-                    exe: 'file-code',
-                    js: 'file-code',
-                    html: 'file-code',
-                    css: 'file-code'
+                    doc: 'file-word', docx: 'file-word',
+                    xls: 'file-excel', xlsx: 'file-excel',
+                    jpg: 'file-image', jpeg: 'file-image', png: 'file-image',
+                    zip: 'file-archive', rar: 'file-archive'
                 };
-                
-                return icons[extension] || 'file';
+                return icons[ext] || 'file';
             }
             
-            // Helper function to format file size
-            function formatFileSize(bytes) {
+            function formatSize(bytes) {
                 if (bytes === 0) return '0 Bytes';
-                const k = 1024;
                 const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                const i = Math.floor(Math.log(bytes) / Math.log(1024));
+                return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
             }
+
+            // Initial debug log
+            debugLog('Application initialized successfully');
+            debugLog(`Current time: ${new Date().toISOString()}`);
+            debugLog(`API Base URL: ${API_BASE_URL}`);
         });
     </script>
 </body>
