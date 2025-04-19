@@ -7,8 +7,8 @@ const path = require('path');
 
 const app = express();
 
-// MongoDB Connection Setup
-const uri = process.env.MONGO_URI || "mongodb+srv://MOUNSIF:Zaki210300@@cluster0.v3i952t.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+// MongoDB Connection Setup - IMPORTANT: Escape the @ in password or use environment variables
+const uri = process.env.MONGO_URI || "mongodb+srv://MOUNSIF:Zaki210300@%40@cluster0.v3i952t.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -30,16 +30,31 @@ async function connectDB() {
 }
 connectDB();
 
-// Enable CORS
+// Enhanced CORS configuration
+const allowedOrigins = [
+  'https://zakariamncf.github.io',
+  'https://logisticstraining.vercel.app',
+  'http://localhost:3000'
+];
+
 app.use(cors({
-  origin: [
-    'https://zakariamncf.github.io',
-    'https://logisticstraining.vercel.app',
-    'http://localhost:3000' // For local development
-  ],
-  methods: ['GET', 'POST', 'DELETE'],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
+// Pre-flight requests
+app.options('*', cors());
 
 // Middleware
 app.use(express.json());
@@ -145,6 +160,7 @@ app.delete('/api/files/:id', async (req, res) => {
   }
 });
 
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK',
