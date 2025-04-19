@@ -24,8 +24,6 @@ async function connectDB() {
     await client.connect();
     db = client.db();
     console.log("Connected to MongoDB");
-    
-    // Create index for faster queries
     await db.collection('files').createIndex({ uploadDate: -1 });
   } catch (err) {
     console.error("MongoDB connection error:", err);
@@ -33,15 +31,20 @@ async function connectDB() {
   }
 }
 
-// Middleware
+// Enhanced CORS configuration
 app.use(cors({
   origin: ['https://zakariamncf.github.io', 'https://logisticstraining.vercel.app', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'DELETE'],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
+// Pre-flight requests
+app.options('*', cors());
+
 app.use(express.json());
 
-// File upload setup
+// File upload setup (keep your existing multer configuration)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
@@ -51,7 +54,7 @@ const upload = multer({
       'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
-    allowedTypes.includes(file.mimetype) ? cb(null, true) : cb(new Error('Invalid file type'), false);
+    allowedTypes.includes(file.mimetype) ? cb(null, true) : cb(new Error('Invalid file type'), false;
   }
 });
 
@@ -61,10 +64,12 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// API Endpoints
+// API Endpoints with improved error handling
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
 
     const fileDoc = {
       filename: req.file.originalname,
@@ -76,7 +81,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
     const result = await db.collection('files').insertOne(fileDoc);
     
-    res.json({
+    res.status(201).json({
       success: true,
       filename: fileDoc.filename,
       size: fileDoc.size,
@@ -85,7 +90,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     });
   } catch (err) {
     console.error("Upload error:", err);
-    res.status(500).json({ error: err.message || 'Upload failed' });
+    res.status(500).json({ 
+      error: 'Upload failed',
+      details: err.message 
+    });
   }
 });
 
@@ -100,12 +108,19 @@ app.get('/api/files', async (req, res) => {
     res.json(files);
   } catch (err) {
     console.error("Files error:", err);
-    res.status(500).json({ error: 'Failed to get files' });
+    res.status(500).json({ 
+      error: 'Failed to get files',
+      details: err.message 
+    });
   }
 });
 
 app.get('/api/files/:id', async (req, res) => {
   try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid file ID' });
+    }
+
     const file = await db.collection('files').findOne({ 
       _id: new ObjectId(req.params.id) 
     });
@@ -121,12 +136,19 @@ app.get('/api/files/:id', async (req, res) => {
     res.send(file.buffer);
   } catch (err) {
     console.error("Download error:", err);
-    res.status(500).json({ error: 'Download failed' });
+    res.status(500).json({ 
+      error: 'Download failed',
+      details: err.message 
+    });
   }
 });
 
 app.delete('/api/files/:id', async (req, res) => {
   try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid file ID' });
+    }
+
     const result = await db.collection('files').deleteOne({ 
       _id: new ObjectId(req.params.id) 
     });
@@ -138,17 +160,32 @@ app.delete('/api/files/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("Delete error:", err);
-    res.status(500).json({ error: 'Delete failed' });
+    res.status(500).json({ 
+      error: 'Delete failed',
+      details: err.message 
+    });
   }
 });
 
-// Error handling
+// Serve static files if in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'public')));
+  
+  // Handle SPA routing
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
+}
+
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: err.message || 'Server error' });
+  res.status(500).json({ 
+    error: 'Server error',
+    details: err.message 
+  });
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   await connectDB();
