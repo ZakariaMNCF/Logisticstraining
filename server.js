@@ -33,7 +33,8 @@ async function connectDB() {
 
 // Enhanced CORS configuration
 app.use(cors({
-  origin: ['https://zakariamncf.github.io', 'https://logisticstraining.vercel.app', 'http://localhost:3000'],
+  origin: ['https://zakariamncf.github.io', 'logisticstraining-mxoz-git-main-zakariamncfs-projects.vercel.app', 'logisticstraining-mxoz-gq8gce473-zakariamncfs-projects.vercel.app
+', 'https://logisticstraining.vercel.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
