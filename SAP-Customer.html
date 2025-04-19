@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* ALL YOUR EXISTING CSS REMAINS EXACTLY THE SAME */
         :root {
             --primary-color: #4361ee;
             --primary-hover: #3a56d4;
@@ -39,8 +38,357 @@
             padding: 2rem;
         }
         
-        /* KEEP ALL YOUR EXISTING STYLES EXACTLY AS THEY ARE */
-        /* ... (all other CSS rules remain unchanged) ... */
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .upload-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .upload-container:hover {
+            transform: translateY(-5px);
+        }
+        
+        .upload-container h2 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 1.5rem;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .file-input-wrapper:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+        
+        .file-input-wrapper.drag-over {
+            border-color: var(--primary-color);
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+        
+        .file-input-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .file-input-button i {
+            font-size: 3rem;
+            color: var(--primary-color);
+        }
+        
+        .file-input-button .browse-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        
+        .file-input-button .hint-text {
+            font-size: 0.9rem;
+            color: #999;
+        }
+        
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .selected-file {
+            background-color: var(--light-gray);
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .selected-file i {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+        
+        .file-info {
+            flex-grow: 1;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+            word-break: break-all;
+        }
+        
+        .file-meta {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-upload {
+            background-color: var(--primary-color);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-upload:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+        
+        .btn-upload:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status.success {
+            background-color: rgba(75, 181, 67, 0.2);
+            color: var(--success-color);
+            display: block;
+        }
+        
+        .status.error {
+            background-color: rgba(255, 51, 51, 0.2);
+            color: var(--error-color);
+            display: block;
+        }
+        
+        .status.warning {
+            background-color: rgba(255, 204, 0, 0.2);
+            color: var(--warning-color);
+            display: block;
+        }
+        
+        .progress-container {
+            width: 100%;
+            background-color: var(--light-gray);
+            border-radius: 5px;
+            margin: 1rem 0;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background-color: var(--primary-color);
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .files-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .files-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .files-header h2 {
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .files-list {
+            list-style: none;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+        
+        .file-item:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .file-icon {
+            font-size: 1.8rem;
+            color: var(--primary-color);
+            margin-right: 1rem;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .file-details {
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        
+        .file-title {
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-info {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+            flex-wrap: wrap;
+        }
+        
+        .file-info span {
+            white-space: nowrap;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: var(--light-gray);
+            color: var(--primary-color);
+        }
+        
+        .download-btn:hover {
+            color: var(--success-color);
+        }
+        
+        .delete-btn:hover {
+            color: var(--error-color);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--light-gray);
+        }
+        
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 10px;
+            font-family: monospace;
+            z-index: 1000;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        #debug-console pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        #debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 1001;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
         
         @media (max-width: 768px) {
             .container {
@@ -88,6 +436,38 @@
             <p>Upload files securely to the SAP system</p>
         </div>
         
+        <!-- Customer Information Form -->
+        <div class="upload-container" style="margin-bottom: 2rem;">
+            <h2><i class="fas fa-user"></i> Customer Information</h2>
+            <form id="customerForm">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label for="customerName" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Full Name</label>
+                        <input type="text" id="customerName" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 5px;">
+                    </div>
+                    <div>
+                        <label for="customerEmail" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Email</label>
+                        <input type="email" id="customerEmail" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 5px;">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label for="customerPhone" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Phone Number</label>
+                        <input type="tel" id="customerPhone" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 5px;">
+                    </div>
+                    <div>
+                        <label for="customerCompany" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Company</label>
+                        <input type="text" id="customerCompany" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 5px;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label for="customerNotes" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Notes</label>
+                    <textarea id="customerNotes" rows="3" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 5px;"></textarea>
+                </div>
+            </form>
+        </div>
+        
+        <!-- File Upload Section -->
         <div class="upload-container">
             <h2><i class="fas fa-cloud-upload-alt"></i> Upload Files</h2>
             
@@ -122,6 +502,7 @@
             <div id="statusMessage" class="status"></div>
         </div>
         
+        <!-- Uploaded Files Section -->
         <div class="files-container">
             <div class="files-header">
                 <h2><i class="fas fa-file-alt"></i> Uploaded Files</h2>
@@ -153,10 +534,8 @@
             console.style.display = console.style.display === 'none' ? 'block' : 'none';
         }
         
-        // Enhanced API configuration
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000' 
-            : 'https://logisticstraining.vercel.app';
+        // API configuration - REPLACE WITH YOUR ACTUAL BACKEND URL
+        const API_BASE_URL = 'https://your-backend-server.com/api';
         
         document.addEventListener('DOMContentLoaded', function() {
             // DOM Elements
@@ -172,6 +551,7 @@
             const progressBar = document.getElementById('progressBar');
             const filesList = document.getElementById('filesList');
             const fileCount = document.getElementById('fileCount');
+            const customerForm = document.getElementById('customerForm');
             
             // Initialize by loading files
             loadFiles();
@@ -190,7 +570,17 @@
             });
             
             // Upload button handler
-            uploadBtn.addEventListener('click', uploadSelectedFile);
+            uploadBtn.addEventListener('click', async function() {
+                // First validate customer form
+                if (!customerForm.checkValidity()) {
+                    customerForm.reportValidity();
+                    showStatus('Please fill in all required customer information', 'error');
+                    return;
+                }
+                
+                // Then proceed with file upload
+                await uploadSelectedFile();
+            });
             
             // Drag and drop functionality
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -251,7 +641,7 @@
                 progressBar.style.width = '0%';
             }
             
-            // Upload the selected file with enhanced error handling
+            // Enhanced upload function with customer data
             async function uploadSelectedFile() {
                 if (!fileInput.files.length) return;
                 
@@ -260,52 +650,62 @@
                 showStatus('Uploading file...', 'info');
                 
                 try {
+                    // Gather customer data
+                    const customerData = {
+                        name: document.getElementById('customerName').value,
+                        email: document.getElementById('customerEmail').value,
+                        phone: document.getElementById('customerPhone').value,
+                        company: document.getElementById('customerCompany').value,
+                        notes: document.getElementById('customerNotes').value
+                    };
+                    
                     const formData = new FormData();
                     formData.append('file', file);
+                    formData.append('customerData', JSON.stringify(customerData));
                     
-                    // Enhanced progress tracking
-                    const xhr = new XMLHttpRequest();
-                    xhr.upload.addEventListener('progress', (e) => {
-                        if (e.lengthComputable) {
-                            const percentComplete = (e.loaded / e.total) * 100;
-                            progressBar.style.width = `${percentComplete}%`;
-                        }
-                    });
+                    // Show upload progress
+                    let progress = 0;
+                    const progressInterval = setInterval(() => {
+                        progress = Math.min(progress + 10, 90);
+                        progressBar.style.width = `${progress}%`;
+                    }, 300);
                     
-                    debugLog(`Sending file to server: ${file.name}`);
-                    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                    debugLog(`Sending file to: ${API_BASE_URL}/upload`);
+                    const response = await fetch(`${API_BASE_URL}/upload`, {
                         method: 'POST',
                         body: formData,
-                        credentials: 'include',
                         headers: {
                             'Accept': 'application/json'
                         }
                     });
                     
+                    clearInterval(progressInterval);
                     progressBar.style.width = '100%';
                     
                     debugLog(`Server response status: ${response.status}`);
                     
                     if (!response.ok) {
-                        // Try to parse error response
-                        let errorData;
+                        let errorMessage = 'Upload failed';
                         try {
-                            errorData = await response.json();
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorData.message || errorMessage;
                         } catch (e) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
+                            errorMessage = `Server error: ${response.status}`;
                         }
-                        throw new Error(errorData.error || errorData.message || 'Upload failed');
+                        throw new Error(errorMessage);
                     }
                     
                     const result = await response.json();
-                    debugLog('Server response:', result);
+                    debugLog('Upload successful:', result);
                     
                     showStatus(`${result.filename} uploaded successfully!`, 'success');
                     loadFiles(); // Refresh the list
+                    resetFileInput();
                     
                 } catch (error) {
+                    console.error('Upload error:', error);
                     showStatus(error.message || 'Upload failed', 'error');
-                    debugLog('Upload error:', error);
+                    debugLog('Upload error:', error.message);
                 } finally {
                     setTimeout(() => {
                         progressContainer.style.display = 'none';
@@ -314,42 +714,42 @@
                 }
             }
             
-            // Load files from server with enhanced error handling
+            // Load files from server
             async function loadFiles() {
                 try {
-                    debugLog('Fetching files from server...');
-                    const response = await fetch(`${API_BASE_URL}/api/files`, {
-                        credentials: 'include',
+                    debugLog(`Fetching files from: ${API_BASE_URL}/files`);
+                    const response = await fetch(`${API_BASE_URL}/files`, {
                         headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
+                            'Accept': 'application/json'
                         }
                     });
                     
-                    debugLog(`Files response status: ${response.status}`);
+                    debugLog(`Response status: ${response.status}`);
                     
                     if (!response.ok) {
-                        let errorData;
+                        let errorMessage = 'Failed to load files';
                         try {
-                            errorData = await response.json();
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorData.message || errorMessage;
                         } catch (e) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
+                            errorMessage = `Server error: ${response.status}`;
                         }
-                        throw new Error(errorData.error || 'Failed to fetch files');
+                        throw new Error(errorMessage);
                     }
                     
                     const files = await response.json();
-                    debugLog(`Received ${files.length} files from server`);
+                    debugLog(`Received ${files.length} files`);
                     displayFiles(files);
                     
                 } catch (error) {
+                    console.error('Load files error:', error);
                     showStatus(error.message || 'Failed to load files', 'error');
-                    debugLog('Load files error:', error);
+                    debugLog('Load files error:', error.message);
                     displayFiles([]); // Show empty state
                 }
             }
             
-            // Display files in the list (unchanged)
+            // Display files in the list
             function displayFiles(files) {
                 filesList.innerHTML = '';
                 fileCount.textContent = `${files.length} ${files.length === 1 ? 'file' : 'files'}`;
@@ -367,6 +767,15 @@
                 files.forEach(file => {
                     const fileItem = document.createElement('li');
                     fileItem.className = 'file-item';
+                    
+                    // Include customer info if available
+                    const customerInfo = file.customerData ? `
+                        <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #555;">
+                            <div><strong>Customer:</strong> ${file.customerData.name}</div>
+                            <div><strong>Company:</strong> ${file.customerData.company || 'N/A'}</div>
+                        </div>
+                    ` : '';
+                    
                     fileItem.innerHTML = `
                         <div class="file-icon">
                             <i class="fas fa-${getFileIcon(file.filename)}"></i>
@@ -378,6 +787,7 @@
                                 <span>${file.mimetype}</span>
                                 <span>Uploaded: ${new Date(file.uploadDate).toLocaleString()}</span>
                             </div>
+                            ${customerInfo}
                         </div>
                         <div class="file-actions">
                             <button class="action-btn download-btn" data-id="${file._id}">
@@ -395,7 +805,7 @@
                 document.querySelectorAll('.download-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const fileId = e.currentTarget.getAttribute('data-id');
-                        window.open(`${API_BASE_URL}/api/files/${fileId}`, '_blank');
+                        window.open(`${API_BASE_URL}/files/${fileId}`, '_blank');
                     });
                 });
                 
@@ -404,9 +814,8 @@
                         const fileId = e.currentTarget.getAttribute('data-id');
                         if (confirm('Are you sure you want to delete this file?')) {
                             try {
-                                const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
+                                const response = await fetch(`${API_BASE_URL}/files/${fileId}`, {
                                     method: 'DELETE',
-                                    credentials: 'include',
                                     headers: {
                                         'Accept': 'application/json'
                                     }
@@ -416,18 +825,18 @@
                                     throw new Error('Failed to delete file');
                                 }
                                 
-                                loadFiles(); // Refresh the list
-                                showStatus('File deleted', 'success');
+                                loadFiles();
+                                showStatus('File deleted successfully', 'success');
                             } catch (error) {
+                                console.error('Delete error:', error);
                                 showStatus('Failed to delete file', 'error');
-                                debugLog('Delete error:', error);
                             }
                         }
                     });
                 });
             }
             
-            // Helper functions (unchanged)
+            // Helper functions
             function showProgress() {
                 progressContainer.style.display = 'block';
                 progressBar.style.width = '0%';
