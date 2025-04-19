@@ -649,7 +649,7 @@
                 if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
                 
                 try {
-                    const response = await fetch(`${https://logisticstraining.vercel.app}/api/files/${fileId}`, {
+                    const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
                         method: 'DELETE'
                     });
                     
