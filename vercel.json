@@ -4,6 +4,10 @@
     {
       "src": "server.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "uploads/sap/customer_contact",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -12,8 +16,16 @@
       "dest": "server.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "public/$1"
+      "src": "/SAP-Customer.html",
+      "dest": "SAP-Customer.html"
+    },
+    {
+      "src": "/",
+      "dest": "index.html"
+    },
+    {
+      "src": "/uploads/sap/customer_contact/(.*)",
+      "dest": "uploads/sap/customer_contact/$1"
     }
   ]
 }
