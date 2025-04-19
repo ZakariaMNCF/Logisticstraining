@@ -3,29 +3,17 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
-    },
-    {
-      "src": "SAP-Customer.html",
-      "use": "@vercel/static"
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server.js",
-      "methods": ["GET", "POST", "DELETE", "OPTIONS"]
+      "dest": "server.js"
     },
     {
       "src": "/(.*)",
-      "dest": "SAP-Customer.html"
+      "dest": "public/$1"
     }
-  ],
-  "env": {
-    "MONGO_URI": "mongodb+srv://MOUNSIF:Zaki210300@cluster0.v3i952t.mongodb.net/fileUploadDB?retryWrites=true&w=majority&appName=Cluster0",
-    "NODE_ENV": "production"
-  }
+  ]
 }
