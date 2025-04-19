@@ -8,7 +8,7 @@ const path = require('path');
 const app = express();
 
 // MongoDB Connection - Using environment variable
-const uri = process.env.MONGODB_URI || "mongodb+srv://MOUNSIF:Zaki210300@cluster0.v3i952t.mongodb.net/fileUploadDB?retryWrites=true&w=majority&appName=Cluster0";
+const uri = process.env.MONGODB_URI || "mongodb+srv://MOUNSIF:Zaki210300@@cluster0.v3i952t.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
