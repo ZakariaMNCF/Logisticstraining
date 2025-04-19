@@ -414,7 +414,7 @@
 
     <script>
         // Dynamic API base URL based on current host
-        const API_BASE_URL = https://logisticstraining.vercel.app/;
+        const API_BASE_URL = window.location.origin;
         
         document.addEventListener('DOMContentLoaded', function() {
             // DOM Elements
@@ -457,3 +457,268 @@
             // Drag and drop functionality
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight() {
+                dropZone.classList.add('drag-over');
+            }
+            
+            function unhighlight() {
+                dropZone.classList.remove('drag-over');
+            }
+            
+            dropZone.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    updateFileInfo(files[0]);
+                }
+            }
+            
+            // Update file info display
+            function updateFileInfo(file) {
+                const icon = getFileIcon(file.name);
+                
+                selectedFile.style.display = 'flex';
+                fileName.innerHTML = `<i class="fas fa-${icon}"></i> ${file.name}`;
+                fileMeta.textContent = `${formatFileSize(file.size)} • ${file.type || 'Unknown type'}`;
+                uploadBtn.disabled = false;
+            }
+            
+            // Reset file input
+            function resetFileInput() {
+                fileInput.value = '';
+                selectedFile.style.display = 'none';
+                uploadBtn.disabled = true;
+                statusMessage.style.display = 'none';
+                statusMessage.className = 'status';
+                progressBar.style.width = '0%';
+            }
+            
+            // Upload file to backend
+            async function uploadFile(file) {
+                progressContainer.style.display = 'block';
+                statusMessage.style.display = 'none';
+                uploadBtn.disabled = true;
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                    // Show progress animation
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += Math.random() * 15;
+                        if (progress >= 90) {
+                            clearInterval(interval);
+                        }
+                        progressBar.style.width = `${progress}%`;
+                    }, 200);
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include' // Include cookies if needed
+                    });
+                    
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Upload failed');
+                    }
+                    
+                    const result = await response.json();
+                    showStatus(`${result.filename} uploaded successfully!`, 'success');
+                    await fetchFiles(); // Refresh file list
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    showStatus(error.message || 'File upload failed', 'error');
+                } finally {
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        progressBar.style.width = '0%';
+                    }, 1000);
+                    uploadBtn.disabled = false;
+                }
+            }
+            
+            // Fetch files from backend
+            async function fetchFiles() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/files`, {
+                        credentials: 'include' // Include cookies if needed
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to fetch files');
+                    
+                    const files = await response.json();
+                    renderFilesList(files);
+                } catch (error) {
+                    console.error('Error fetching files:', error);
+                    showStatus('Failed to load files', 'error');
+                }
+            }
+            
+            // Render files list
+            function renderFilesList(files = []) {
+                if (!files || files.length === 0) {
+                    filesList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open"></i>
+                            <p>No files uploaded yet</p>
+                        </div>
+                    `;
+                    fileCount.textContent = '0 files';
+                    return;
+                }
+                
+                filesList.innerHTML = '';
+                fileCount.textContent = `${files.length} ${files.length === 1 ? 'file' : 'files'}`;
+                
+                files.forEach(file => {
+                    const fileItem = document.createElement('li');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <div class="file-icon">
+                            <i class="fas fa-${getFileIcon(file.filename)}"></i>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-title">${file.filename}</div>
+                            <div class="file-info">
+                                <span>${formatFileSize(file.size)}</span>
+                                <span>${file.mimetype}</span>
+                                <span>Uploaded: ${new Date(file.uploadDate).toLocaleString()}</span>
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="action-btn download-btn" data-id="${file._id}" title="Download">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button class="action-btn delete-btn" data-id="${file._id}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    filesList.appendChild(fileItem);
+                });
+                
+                // Add event listeners to new buttons
+                document.querySelectorAll('.download-btn').forEach(btn => {
+                    btn.addEventListener('click', handleDownload);
+                });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', handleDelete);
+                });
+            }
+            
+            // Handle file download
+            async function handleDownload(e) {
+                const fileId = e.currentTarget.getAttribute('data-id');
+                const fileItem = e.currentTarget.closest('.file-item');
+                const fileName = fileItem.querySelector('.file-title').textContent;
+                
+                try {
+                    showStatus(`Preparing ${fileName} for download...`, 'success');
+                    window.open(`${API_BASE_URL}/api/files/${fileId}`, '_blank');
+                } catch (error) {
+                    console.error('Download error:', error);
+                    showStatus('Failed to download file', 'error');
+                }
+            }
+            
+            // Handle file deletion
+            async function handleDelete(e) {
+                const fileId = e.currentTarget.getAttribute('data-id');
+                const fileItem = e.currentTarget.closest('.file-item');
+                const fileName = fileItem.querySelector('.file-title').textContent;
+                
+                if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
+                        method: 'DELETE',
+                        credentials: 'include' // Include cookies if needed
+                    });
+                    
+                    if (!response.ok) throw new Error('Delete failed');
+                    
+                    showStatus(`"${fileName}" has been deleted`, 'success');
+                    await fetchFiles(); // Refresh the list
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    showStatus('Failed to delete file', 'error');
+                }
+            }
+            
+            // Helper function to show status messages
+            function showStatus(message, type) {
+                statusMessage.textContent = message;
+                statusMessage.className = `status ${type}`;
+                statusMessage.style.display = 'block';
+                
+                // Hide after 5 seconds
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 5000);
+            }
+            
+            // Helper function to get file icon based on extension
+            function getFileIcon(filename) {
+                const extension = filename.split('.').pop().toLowerCase();
+                const icons = {
+                    pdf: 'file-pdf',
+                    doc: 'file-word',
+                    docx: 'file-word',
+                    xls: 'file-excel',
+                    xlsx: 'file-excel',
+                    ppt: 'file-powerpoint',
+                    pptx: 'file-powerpoint',
+                    jpg: 'file-image',
+                    jpeg: 'file-image',
+                    png: 'file-image',
+                    gif: 'file-image',
+                    txt: 'file-alt',
+                    csv: 'file-csv',
+                    zip: 'file-archive',
+                    rar: 'file-archive',
+                    mp3: 'file-audio',
+                    wav: 'file-audio',
+                    mp4: 'file-video',
+                    mov: 'file-video'
+                };
+                
+                return icons[extension] || 'file';
+            }
+            
+            // Helper function to format file size
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+            }
+        });
+    </script>
+</body>
+</html>
