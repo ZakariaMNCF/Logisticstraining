@@ -1,20 +1,15 @@
 {
-  "name": "sap-file-upload",
+  "name": "sap-project",
   "version": "1.0.0",
-  "description": "SAP File Upload System with MongoDB",
-  "main": "server.js",
+  "main": "Server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node Server.js"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "mongodb": "^6.3.0",
-    "multer": "^1.4.5-lts.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "fs": "0.0.1-security",
+    "path": "^0.12.7"
   }
 }
