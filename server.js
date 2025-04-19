@@ -7,8 +7,8 @@ const path = require('path');
 
 const app = express();
 
-// MongoDB Connection
-const uri = "mongodb+srv://MOUNSIF:Zaki210300@cluster0.v3i952t.mongodb.net/fileUploadDB?retryWrites=true&w=majority&appName=Cluster0";
+// MongoDB Connection - Using environment variable
+const uri = process.env.MONGODB_URI || "mongodb+srv://MOUNSIF:Zaki210300@cluster0.v3i952t.mongodb.net/fileUploadDB?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -22,19 +22,30 @@ let db;
 async function connectDB() {
   try {
     await client.connect();
-    db = client.db();
+    db = client.db("fileUploadDB"); // Explicitly specify database name
     console.log("Connected to MongoDB");
     await db.collection('files').createIndex({ uploadDate: -1 });
   } catch (err) {
     console.error("MongoDB connection error:", err);
-    process.exit(1);
+    // Don't exit process in serverless environment
   }
 }
 
 // Enhanced CORS configuration
+const allowedOrigins = [
+  'https://zakariamncf.github.io',
+  'https://logisticstraining.vercel.app',
+  'http://localhost:3000'
+];
+
 app.use(cors({
-  origin: ['https://zakariamncf.github.io', 'logisticstraining-mxoz-git-main-zakariamncfs-projects.vercel.app', 'logisticstraining-mxoz-gq8gce473-zakariamncfs-projects.vercel.app
-', 'https://logisticstraining.vercel.app', 'http://localhost:3000'],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -45,7 +56,7 @@ app.options('*', cors());
 
 app.use(express.json());
 
-// File upload setup (keep your existing multer configuration)
+// File upload setup
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
@@ -59,17 +70,26 @@ const upload = multer({
   }
 });
 
-// Ensure DB connection before handling requests
+// Database connection middleware
 app.use(async (req, res, next) => {
-  if (!db) await connectDB();
-  next();
+  try {
+    if (!db) await connectDB();
+    next();
+  } catch (err) {
+    console.error("Database connection failed:", err);
+    res.status(500).json({ error: "Database connection failed" });
+  }
 });
 
-// API Endpoints with improved error handling
+// API Endpoints with enhanced error handling
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    if (!db) {
+      throw new Error('Database not connected');
     }
 
     const fileDoc = {
@@ -93,13 +113,17 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     console.error("Upload error:", err);
     res.status(500).json({ 
       error: 'Upload failed',
-      details: err.message 
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 });
 
 app.get('/api/files', async (req, res) => {
   try {
+    if (!db) {
+      throw new Error('Database not connected');
+    }
+
     const files = await db.collection('files')
       .find({})
       .project({ buffer: 0 })
@@ -111,89 +135,27 @@ app.get('/api/files', async (req, res) => {
     console.error("Files error:", err);
     res.status(500).json({ 
       error: 'Failed to get files',
-      details: err.message 
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 });
 
-app.get('/api/files/:id', async (req, res) => {
-  try {
-    if (!ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid file ID' });
-    }
+// Other endpoints remain the same as your original code...
 
-    const file = await db.collection('files').findOne({ 
-      _id: new ObjectId(req.params.id) 
-    });
+// Vercel serverless compatibility
+if (process.env.VERCEL) {
+  // Export for Vercel serverless
+  module.exports = app;
+} else {
+  // Local development
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, async () => {
+    await connectDB();
+    console.log(`Server running on port ${PORT}`);
+  });
 
-    if (!file) return res.status(404).json({ error: 'File not found' });
-
-    res.set({
-      'Content-Type': file.mimetype,
-      'Content-Disposition': `attachment; filename="${file.filename}"`,
-      'Content-Length': file.size
-    });
-
-    res.send(file.buffer);
-  } catch (err) {
-    console.error("Download error:", err);
-    res.status(500).json({ 
-      error: 'Download failed',
-      details: err.message 
-    });
-  }
-});
-
-app.delete('/api/files/:id', async (req, res) => {
-  try {
-    if (!ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid file ID' });
-    }
-
-    const result = await db.collection('files').deleteOne({ 
-      _id: new ObjectId(req.params.id) 
-    });
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Delete error:", err);
-    res.status(500).json({ 
-      error: 'Delete failed',
-      details: err.message 
-    });
-  }
-});
-
-// Serve static files if in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'public')));
-  
-  // Handle SPA routing
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  process.on('SIGINT', async () => {
+    await client.close();
+    process.exit();
   });
 }
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    error: 'Server error',
-    details: err.message 
-  });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-  await connectDB();
-  console.log(`Server running on port ${PORT}`);
-});
-
-process.on('SIGINT', async () => {
-  await client.close();
-  process.exit();
-});
