@@ -16,6 +16,7 @@
             --border-color: #dee2e6;
             --success-color: #4bb543;
             --error-color: #ff3333;
+            --warning-color: #ffcc00;
         }
         
         * {
@@ -157,6 +158,7 @@
         .file-name {
             font-weight: 500;
             margin-bottom: 0.3rem;
+            word-break: break-all;
         }
         
         .file-meta {
@@ -212,6 +214,12 @@
         .status.error {
             background-color: rgba(255, 51, 51, 0.2);
             color: var(--error-color);
+            display: block;
+        }
+        
+        .status.warning {
+            background-color: rgba(255, 204, 0, 0.2);
+            color: var(--warning-color);
             display: block;
         }
         
@@ -280,11 +288,15 @@
         
         .file-details {
             flex-grow: 1;
+            overflow: hidden;
         }
         
         .file-title {
             font-weight: 500;
             margin-bottom: 0.3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .file-info {
@@ -292,6 +304,11 @@
             gap: 1rem;
             font-size: 0.85rem;
             color: #666;
+            flex-wrap: wrap;
+        }
+        
+        .file-info span {
+            white-space: nowrap;
         }
         
         .file-actions {
@@ -335,6 +352,46 @@
             color: var(--light-gray);
         }
         
+        /* Debug console */
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 10px;
+            font-family: monospace;
+            z-index: 1000;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        #debug-console pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        #debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 1001;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -353,10 +410,28 @@
             .file-actions {
                 align-self: flex-end;
             }
+            
+            .file-info {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Debug Console -->
+    <div id="debug-console">
+        <button onclick="document.getElementById('debug-console').style.display='none'" 
+                style="float: right; background: none; border: none; color: white; cursor: pointer">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 style="color: white; margin-bottom: 10px;">Debug Console</h3>
+        <pre id="debug-output"></pre>
+    </div>
+    <button id="debug-toggle" onclick="toggleDebugConsole()">
+        <i class="fas fa-bug"></i>
+    </button>
+
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-file-upload"></i> SAP File Upload</h1>
@@ -413,10 +488,28 @@
     </div>
 
     <script>
+        // Debug console functions
+        function debugLog(message) {
+            const debugOutput = document.getElementById('debug-output');
+            if (debugOutput) {
+                debugOutput.textContent += message + '\n';
+                debugOutput.scrollTop = debugOutput.scrollHeight;
+            }
+            console.log(message);
+        }
+        
+        function toggleDebugConsole() {
+            const console = document.getElementById('debug-console');
+            console.style.display = console.style.display === 'none' ? 'block' : 'none';
+        }
+        
         // Dynamic API base URL based on current host
-        const API_BASE_URL = 'https://logisticstraining.vercel.app';
+        const API_BASE_URL = window.location.origin;
+        debugLog(`Application initialized. API Base URL: ${API_BASE_URL}`);
         
         document.addEventListener('DOMContentLoaded', function() {
+            debugLog('DOM fully loaded and parsed');
+            
             // DOM Elements
             const fileInput = document.getElementById('fileInput');
             const uploadBtn = document.getElementById('uploadBtn');
@@ -432,11 +525,13 @@
             const fileCount = document.getElementById('fileCount');
             
             // Initialize by loading files
+            debugLog('Loading initial file list...');
             fetchFiles();
             
             // File selection handler
             fileInput.addEventListener('change', function() {
                 if (this.files.length > 0) {
+                    debugLog(`File selected: ${this.files[0].name}`);
                     updateFileInfo(this.files[0]);
                 }
             });
@@ -444,12 +539,14 @@
             // Clear file selection
             clearBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
+                debugLog('Clearing file selection');
                 resetFileInput();
             });
             
             // Upload button handler
             uploadBtn.addEventListener('click', async function() {
                 if (fileInput.files.length > 0) {
+                    debugLog(`Starting upload for file: ${fileInput.files[0].name}`);
                     await uploadFile(fileInput.files[0]);
                 }
             });
@@ -473,16 +570,19 @@
             });
             
             function highlight() {
+                debugLog('Drag over detected');
                 dropZone.classList.add('drag-over');
             }
             
             function unhighlight() {
+                debugLog('Drag leave detected');
                 dropZone.classList.remove('drag-over');
             }
             
             dropZone.addEventListener('drop', handleDrop, false);
             
             function handleDrop(e) {
+                debugLog('File dropped');
                 const dt = e.dataTransfer;
                 const files = dt.files;
                 
@@ -500,6 +600,8 @@
                 fileName.innerHTML = `<i class="fas fa-${icon}"></i> ${file.name}`;
                 fileMeta.textContent = `${formatFileSize(file.size)} • ${file.type || 'Unknown type'}`;
                 uploadBtn.disabled = false;
+                
+                debugLog(`File info updated: ${file.name} (${formatFileSize(file.size)})`);
             }
             
             // Reset file input
@@ -532,25 +634,29 @@
                         progressBar.style.width = `${progress}%`;
                     }, 200);
                     
+                    debugLog(`Sending file to server: ${file.name}`);
                     const response = await fetch(`${API_BASE_URL}/api/upload`, {
                         method: 'POST',
                         body: formData,
-                        credentials: 'include' // Include cookies if needed
+                        credentials: 'include'
                     });
                     
                     clearInterval(interval);
                     progressBar.style.width = '100%';
                     
+                    debugLog(`Server response status: ${response.status}`);
+                    const result = await response.json();
+                    debugLog('Server response:', result);
+                    
                     if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.error || 'Upload failed');
+                        throw new Error(result.error || result.details || 'Upload failed');
                     }
                     
-                    const result = await response.json();
                     showStatus(`${result.filename} uploaded successfully!`, 'success');
                     await fetchFiles(); // Refresh file list
                 } catch (error) {
                     console.error('Upload error:', error);
+                    debugLog(`Upload error: ${error.message}`);
                     showStatus(error.message || 'File upload failed', 'error');
                 } finally {
                     setTimeout(() => {
@@ -564,23 +670,41 @@
             // Fetch files from backend
             async function fetchFiles() {
                 try {
+                    debugLog('Fetching files from server...');
                     const response = await fetch(`${API_BASE_URL}/api/files`, {
-                        credentials: 'include' // Include cookies if needed
+                        credentials: 'include'
                     });
                     
-                    if (!response.ok) throw new Error('Failed to fetch files');
+                    debugLog(`Files response status: ${response.status}`);
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to fetch files');
+                    }
                     
                     const files = await response.json();
+                    debugLog(`Received ${files.length} files from server`);
                     renderFilesList(files);
                 } catch (error) {
                     console.error('Error fetching files:', error);
-                    showStatus('Failed to load files', 'error');
+                    debugLog(`Error fetching files: ${error.message}`);
+                    showStatus(error.message || 'Failed to load files', 'error');
+                    
+                    // Show empty state if error occurs
+                    filesList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>${error.message || 'Error loading files'}</p>
+                        </div>
+                    `;
+                    fileCount.textContent = '0 files';
                 }
             }
             
             // Render files list
             function renderFilesList(files = []) {
                 if (!files || files.length === 0) {
+                    debugLog('No files to display, showing empty state');
                     filesList.innerHTML = `
                         <div class="empty-state">
                             <i class="fas fa-folder-open"></i>
@@ -591,6 +715,7 @@
                     return;
                 }
                 
+                debugLog(`Rendering ${files.length} files in the list`);
                 filesList.innerHTML = '';
                 fileCount.textContent = `${files.length} ${files.length === 1 ? 'file' : 'files'}`;
                 
@@ -638,10 +763,12 @@
                 const fileName = fileItem.querySelector('.file-title').textContent;
                 
                 try {
+                    debugLog(`Preparing download for file ID: ${fileId}`);
                     showStatus(`Preparing ${fileName} for download...`, 'success');
                     window.open(`${API_BASE_URL}/api/files/${fileId}`, '_blank');
                 } catch (error) {
                     console.error('Download error:', error);
+                    debugLog(`Download error: ${error.message}`);
                     showStatus('Failed to download file', 'error');
                 }
             }
@@ -652,26 +779,39 @@
                 const fileItem = e.currentTarget.closest('.file-item');
                 const fileName = fileItem.querySelector('.file-title').textContent;
                 
-                if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+                if (!confirm(`Are you sure you want to delete "${fileName}"?`)) {
+                    debugLog('File deletion cancelled by user');
+                    return;
+                }
                 
                 try {
+                    debugLog(`Deleting file ID: ${fileId}`);
+                    showStatus(`Deleting "${fileName}"...`, 'warning');
+                    
                     const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
                         method: 'DELETE',
-                        credentials: 'include' // Include cookies if needed
+                        credentials: 'include'
                     });
                     
-                    if (!response.ok) throw new Error('Delete failed');
+                    debugLog(`Delete response status: ${response.status}`);
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Delete failed');
+                    }
                     
                     showStatus(`"${fileName}" has been deleted`, 'success');
                     await fetchFiles(); // Refresh the list
                 } catch (error) {
                     console.error('Delete error:', error);
+                    debugLog(`Delete error: ${error.message}`);
                     showStatus('Failed to delete file', 'error');
                 }
             }
             
             // Helper function to show status messages
             function showStatus(message, type) {
+                debugLog(`Status message: [${type}] ${message}`);
                 statusMessage.textContent = message;
                 statusMessage.className = `status ${type}`;
                 statusMessage.style.display = 'block';
@@ -718,6 +858,10 @@
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
             }
+            
+            // Initial debug log
+            debugLog('Application initialized successfully');
+            debugLog(`Current time: ${new Date().toISOString()}`);
         });
     </script>
 </body>
